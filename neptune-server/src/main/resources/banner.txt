@@ -1,0 +1,10 @@
+${AnsiColor.BRIGHT_WHITE}
+
+ _      _____ ____  _____  _     _      _____
+/ \  /|/  __//  __\/__ __\/ \ /\/ \  /|/  __/
+| |\ |||  \  |  \/|  / \  | | ||| |\ |||  \
+| | \|||  /_ |  __/  | |  | \_/|| | \|||  /_
+\_/  \|\____\\_/     \_/  \____/\_/  \|\____\
+
+ ${AnsiColor.YELLOW}ENV:${spring.profiles.active:default}                         ${AnsiColor.BRIGHT_RED}VERSION:${swagger2.version:1.0}
+ ${AnsiColor.DEFAULT}
