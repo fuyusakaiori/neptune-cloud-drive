@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.neptune.cloud.drive.server.mapper.ErrorLogMapper">
+
+    <resultMap id="ErrorLogResultMap" type="com.neptune.cloud.drive.server.model.ErrorLog">
+            <id property="logId" column="id" />
+            <result property="logContent" column="log_content" />
+            <result property="logStatus" column="log_status" />
+            <result property="createUser" column="create_user" />
+            <result property="createTime" column="create_time" />
+            <result property="updateUser" column="update_user" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,log_content,log_status,create_user,create_time,update_user,
+        update_time
+    </sql>
+</mapper>

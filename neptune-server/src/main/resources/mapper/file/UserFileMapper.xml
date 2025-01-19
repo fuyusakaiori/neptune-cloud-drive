@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.neptune.cloud.drive.server.mapper.UserFileMapper">
+
+    <resultMap id="UserFileResultMap" type="com.neptune.cloud.drive.server.model.UserFile">
+            <id property="fileId" column="file_id" />
+            <result property="userId" column="user_id" />
+            <result property="parentId" column="parent_id" />
+            <result property="realFileId" column="real_file_id" />
+            <result property="filename" column="filename" />
+            <result property="folderFlag" column="folder_flag" />
+            <result property="fileSizeDesc" column="file_size_desc" />
+            <result property="fileType" column="file_type" />
+            <result property="delFlag" column="del_flag" />
+            <result property="createUser" column="create_user" />
+            <result property="createTime" column="create_time" />
+            <result property="updateUser" column="update_user" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        file_id,user_id,parent_id,real_file_id,filename,folder_flag,
+        file_size_desc,file_type,del_flag,create_user,create_time,
+        update_user,update_time
+    </sql>
+</mapper>

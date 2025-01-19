@@ -1,6 +1,3 @@
-server:
-  port: 8080
-
 spring:
   application:
     name: neptune-cloud-drive
@@ -14,15 +11,10 @@ spring:
     multipart:
       max-file-size: 3072MB
       max-request-size: 3072MB
-  datasource:
-    username: root
-    password: 123456
-    url: jdbc:mysql://127.0.0.1:3306/cloud-drive?characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    driver-class-name: com.mysql.jdbc.Driver
 
-mybatis-plus:
-  mapper-locations: classpath*:/mapper/**/*.xml
 
+server:
+  port: 8080
 
 management:
   endpoints:

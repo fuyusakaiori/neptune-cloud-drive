@@ -14,7 +14,7 @@ import java.io.IOException;
  */
 @WebFilter(filterName = "corsFilter")
 @Order(1)
-public class CorsFilter implements Filter {
+public class WebCorsFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {

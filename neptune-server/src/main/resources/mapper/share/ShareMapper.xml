@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.neptune.cloud.drive.server.mapper.ShareMapper">
+
+    <resultMap id="ShareResultMap" type="com.neptune.cloud.drive.server.model.Share">
+            <id property="shareId" column="share_id" />
+            <result property="shareName" column="share_name" />
+            <result property="shareType" column="share_type" />
+            <result property="shareDayType" column="share_day_type" />
+            <result property="shareDay" column="share_day" />
+            <result property="shareEndTime" column="share_end_time" />
+            <result property="shareUrl" column="share_url" />
+            <result property="shareCode" column="share_code" />
+            <result property="shareStatus" column="share_status" />
+            <result property="createUser" column="create_user" />
+            <result property="createTime" column="create_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        share_id,share_name,share_type,share_day_type,share_day,share_end_time,
+        share_url,share_code,share_status,create_user,create_time
+    </sql>
+</mapper>
