@@ -5,24 +5,29 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.neptune</groupId>
-        <artifactId>neptune-cloud-drive</artifactId>
+        <artifactId>neptune-cache</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>neptune-framework</artifactId>
-    <packaging>pom</packaging>
-    <modules>
-        <module>neptune-core</module>
-        <module>neptune-web</module>
-        <module>neptune-swagger</module>
-        <module>neptune-orm</module>
-        <module>neptune-cache</module>
-    </modules>
+    <artifactId>neptune-cache-core</artifactId>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.neptune</groupId>
+            <artifactId>neptune-core</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <!-- springboot cache -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>
