@@ -2,6 +2,7 @@ package com.neptune.cloud.drive.server.service;
 
 import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.server.CloudDriveBootstrap;
+import com.neptune.cloud.drive.server.context.LoginUserContext;
 import com.neptune.cloud.drive.server.context.RegisterUserContext;
 import org.junit.Assert;
 import org.junit.Test;
@@ -28,7 +29,25 @@ public class UserServiceTest {
         register = userService.register(context);
     }
 
+    @Test
+    public void loginSuccessTest() {
+        LoginUserContext context = loginUserContext();
+        // 1. 登录用户
+        String accessToken = userService.login(context);
+        // 2. 判断是否登录成功
+        Assert.assertNotNull(accessToken);
+    }
 
+    @Test(expected = BusinessException.class)
+    public void loginFailTest() {
+        LoginUserContext context = loginUserContext();
+        // 1. 修改为错误的密码
+        context.setPassword("123456789");
+        // 2. 登录用户
+        String accessToken = userService.login(context);
+        // 3. 判断是否登录成功
+        Assert.assertNotNull(accessToken);
+    }
 
     private RegisterUserContext registerUserContext() {
         return new RegisterUserContext()
@@ -38,5 +57,9 @@ public class UserServiceTest {
                 .setAnswer("吹响!上低音号!");
     }
 
+    private LoginUserContext loginUserContext() {
+        return new LoginUserContext()
+                .setUsername("fuyusakaiori").setPassword("123456");
+    }
 
 }

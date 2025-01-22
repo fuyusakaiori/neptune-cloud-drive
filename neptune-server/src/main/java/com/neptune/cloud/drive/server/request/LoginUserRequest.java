@@ -12,17 +12,14 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 import java.io.Serializable;
 
-/**
- * 注册用户的请求
- */
-@ApiModel(value = "用户注册参数")
+@ApiModel(value = "用户登录参数")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class RegisterUserRequest implements Serializable {
+public class LoginUserRequest implements Serializable {
 
-    private static final long serialVersionUID = 4308555141084782468L;
+    private static final long serialVersionUID = -5134290437817623141L;
 
     /**
      * 用户账号
@@ -40,19 +37,4 @@ public class RegisterUserRequest implements Serializable {
     @Length(min = 8, max = 16, message = "请输入 8-16 位的密码")
     private String password;
 
-    /**
-     * 用户的密保问题
-     */
-    @ApiModelProperty(value = "密保问题", required = true)
-    @NotBlank(message = "用户账号的密保问题不可以为空")
-    @Length(max = 100, message = "密保问题不可以超过 100 个字符")
-    private String question;
-
-    /**
-     * 用户的密保答案
-     */
-    @ApiModelProperty(value = "密保答案", required = true)
-    @NotBlank(message = "用户账号的密保答案不可以为空")
-    @Length(max = 100, message = "密保问题答案不可以超过 100 个字符")
-    private String answer;
 }

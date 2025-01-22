@@ -1,11 +1,15 @@
 package com.neptune.cloud.drive.server.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.neptune.cloud.drive.cache.core.constant.CacheConstant;
 import com.neptune.cloud.drive.constant.StringConstant;
 import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.response.ResponseCode;
 import com.neptune.cloud.drive.server.common.constant.FileConstant;
+import com.neptune.cloud.drive.server.common.constant.UserConstant;
 import com.neptune.cloud.drive.server.context.CreateUserFolderContext;
+import com.neptune.cloud.drive.server.context.LoginUserContext;
 import com.neptune.cloud.drive.server.context.RegisterUserContext;
 import com.neptune.cloud.drive.server.converter.UserConverter;
 import com.neptune.cloud.drive.server.mapper.UserMapper;
@@ -13,9 +17,13 @@ import com.neptune.cloud.drive.server.model.User;
 import com.neptune.cloud.drive.server.service.IUserFileService;
 import com.neptune.cloud.drive.server.service.IUserService;
 import com.neptune.cloud.drive.util.IdUtil;
+import com.neptune.cloud.drive.util.JwtUtil;
 import com.neptune.cloud.drive.util.PasswordUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -31,8 +39,14 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     private IUserFileService userFileService;
 
     @Autowired
+    private CacheManager cacheManager;
+
+    @Autowired
     private UserConverter userConverter;
 
+    /**
+     * 用户注册
+     */
     @Override
     public long register(RegisterUserContext context) {
         // 1. 封装实体类
@@ -43,6 +57,22 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
         createUserRootFolder(user);
 
         return user.getUserId();
+    }
+
+    /**
+     * 用户登录
+     */
+    @Override
+    public String login(LoginUserContext context) {
+        // 1. 验证登录信息
+        checkLogin(context);
+        // 2. 生成登录的 token 信息
+        String accessToken = generateAccessToken(context.getUserId(), context.getUsername());
+        // 3. 判断 token 是否生成成功
+        if (StringUtils.isEmpty(accessToken)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "用户登录失败");
+        }
+        return accessToken;
     }
 
     /**
@@ -111,6 +141,65 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户根目录创建失败");
         }
     }
+
+    /**
+     * 验证用户登录信息
+     */
+    private void checkLogin(LoginUserContext context) {
+        // 1. 判断账号密码是否为空
+        if (StringUtils.isAnyEmpty(context.getUsername(), context.getPassword())) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 2. 查询用户登录信息
+        User user = selectUser(context.getUsername());
+        // 3. 判断查询是否成功
+        if (Objects.isNull(user)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "用户账号不存在");
+        }
+        try {
+            // 4. 判断用户登录的密码是否正确
+            String encryptPassword = user.getPassword();
+            String loginPassword = PasswordUtil.encryptPassword(user.getSalt(), context.getPassword());
+            if (!encryptPassword.equals(loginPassword)) {
+                log.error("UserService checkLogin: 用户登录失败, 输入的账号密码错误, context = {}", context);
+                throw new BusinessException(ResponseCode.ERROR.getCode(), "用户登录的密码错误");
+            }
+            // NOTE: 在上下文中设置用户 ID, 用于生成 token
+            context.setUserId(user.getUserId());
+        } catch (NoSuchAlgorithmException exception) {
+            log.error("UserService checkLogin: 生成登录密码的散列值出现异常, context = {}", context, exception);
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+    }
+
+    /**
+     * 根据用户名查询用户信息
+     */
+    private User selectUser(String username) {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<User>()
+                .eq("username", username);
+        return getOne(queryWrapper);
+    }
+
+    /**
+     * 生成用户登录的 token
+     */
+    private String generateAccessToken(long userId, String username) {
+        // 1. 生成登录 token
+        String accessToken = JwtUtil.generateToken(
+                username, UserConstant.LOGIN_USER_ID, userId, UserConstant.LOGIN_TOKEN_EXPIRE_TIME);
+        // 2. 获取应用缓存
+        Cache cache = cacheManager.getCache(CacheConstant.CLOUD_DRIVE_CACHE_NAME);
+        // 3. 判断缓存是否获取成功
+        if (Objects.isNull(cache)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "缓存用户登录 token 失败");
+        }
+        // 4. 缓存用户登录 token: 单点登录, 不允许多端同时登录
+        cache.put(CacheConstant.USER_LOGIN_PREFIX + userId, accessToken);
+
+        return accessToken;
+    }
+
 
 }
 
