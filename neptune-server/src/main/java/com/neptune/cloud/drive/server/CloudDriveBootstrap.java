@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @SpringBootApplication(scanBasePackages = BasicConstant.BASE_COMPONENT_SCAN_PATH)
 @ServletComponentScan(basePackages = BasicConstant.BASE_COMPONENT_SCAN_PATH)
 @EnableTransactionManagement
-@MapperScan(basePackages = BasicConstant.BASE_COMPONENT_SCAN_PATH + ".server.model.**.mapper")
+@MapperScan(basePackages = BasicConstant.BASE_COMPONENT_SCAN_PATH + ".server.mapper")
 public class CloudDriveBootstrap {
 
     public static void main(String[] args) {

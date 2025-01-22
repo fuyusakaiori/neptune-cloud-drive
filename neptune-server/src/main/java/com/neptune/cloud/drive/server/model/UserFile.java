@@ -5,12 +5,14 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * 用户文件信息表
  */
-@TableName(value ="cloud_drive_user_file")
 @Data
+@Accessors(chain = true)
+@TableName(value ="cloud_drive_user_file")
 public class UserFile {
     /**
      * 文件记录ID

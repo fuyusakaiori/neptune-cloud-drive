@@ -5,15 +5,17 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * 用户信息表
  */
-@TableName(value ="cloud_drive_user")
 @Data
+@Accessors(chain = true)
+@TableName(value ="cloud_drive_user")
 public class User {
     /**
-     * 用户id
+     * 用户 id
      */
     @TableId(value = "user_id")
     private Long userId;
