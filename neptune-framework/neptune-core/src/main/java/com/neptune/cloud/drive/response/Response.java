@@ -54,7 +54,7 @@ public class Response<T> implements Serializable {
     }
 
     public static <T> Response<T> success() {
-        return new Response<T>(ResponseCode.SUCCESS.getCode());
+        return new Response<T>(ResponseCode.SUCCESS.getCode(), ResponseCode.SUCCESS.getMessage());
     }
 
     public static <T> Response<T> success(String message) {

@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.common.listener;
+package com.neptune.cloud.drive.server.listener;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ansi.AnsiColor;

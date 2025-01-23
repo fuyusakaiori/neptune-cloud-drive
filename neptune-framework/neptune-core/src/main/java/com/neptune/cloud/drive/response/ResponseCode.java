@@ -45,7 +45,7 @@ public enum ResponseCode {
     /**
      * 需要登录
      */
-    NEED_LOGIN(10, "NEED_LOGIN");
+    NEED_LOGIN(10, "用户未登录");
 
     private final int code;
 

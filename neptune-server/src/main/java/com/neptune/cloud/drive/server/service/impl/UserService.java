@@ -10,6 +10,7 @@ import com.neptune.cloud.drive.server.common.constant.FileConstant;
 import com.neptune.cloud.drive.server.common.constant.UserConstant;
 import com.neptune.cloud.drive.server.context.CreateUserFolderContext;
 import com.neptune.cloud.drive.server.context.LoginUserContext;
+import com.neptune.cloud.drive.server.context.LogoutUserContext;
 import com.neptune.cloud.drive.server.context.RegisterUserContext;
 import com.neptune.cloud.drive.server.converter.UserConverter;
 import com.neptune.cloud.drive.server.mapper.UserMapper;
@@ -39,16 +40,21 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     private IUserFileService userFileService;
 
     @Autowired
-    private CacheManager cacheManager;
+    private UserConverter userConverter;
 
     @Autowired
-    private UserConverter userConverter;
+    private CacheManager cacheManager;
+
 
     /**
      * 用户注册
      */
     @Override
     public long register(RegisterUserContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
         // 1. 封装实体类
         User user = assembleUser(context);
         // 2. 创建用户信息
@@ -64,6 +70,10 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
      */
     @Override
     public String login(LoginUserContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
         // 1. 验证登录信息
         checkLogin(context);
         // 2. 生成登录的 token 信息
@@ -73,6 +83,25 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户登录失败");
         }
         return accessToken;
+    }
+
+    /**
+     * 用户登出
+     */
+    @Override
+    public void logout(LogoutUserContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 获取缓存
+        Cache cache = cacheManager.getCache(CacheConstant.CLOUD_DRIVE_CACHE_NAME);
+        // 2. 判断缓存是否获取成功
+        if (Objects.isNull(cache)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 3. 清除缓存
+        cache.evict(CacheConstant.USER_LOGIN_PREFIX + context.getUserId());
     }
 
     /**
@@ -187,14 +216,14 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     private String generateAccessToken(long userId, String username) {
         // 1. 生成登录 token
         String accessToken = JwtUtil.generateToken(
-                username, UserConstant.LOGIN_USER_ID, userId, UserConstant.LOGIN_TOKEN_EXPIRE_TIME);
+                username, UserConstant.USER_LOGIN_ID, userId, UserConstant.USER_LOGIN_TOKEN_EXPIRE_TIME);
         // 2. 获取应用缓存
         Cache cache = cacheManager.getCache(CacheConstant.CLOUD_DRIVE_CACHE_NAME);
         // 3. 判断缓存是否获取成功
         if (Objects.isNull(cache)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "缓存用户登录 token 失败");
         }
-        // 4. 缓存用户登录 token: 单点登录, 不允许多端同时登录
+        // 4. 缓存用户登录 token: 无法单独设置 key-value 过期时间, 只能通过配置设置
         cache.put(CacheConstant.USER_LOGIN_PREFIX + userId, accessToken);
 
         return accessToken;
