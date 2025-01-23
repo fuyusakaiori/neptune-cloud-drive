@@ -5,10 +5,12 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.neptune.cloud.drive.constant.StringConstant;
 import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.response.ResponseCode;
+import com.neptune.cloud.drive.server.common.constant.FileConstant;
 import com.neptune.cloud.drive.server.common.enums.FileType;
-import com.neptune.cloud.drive.server.common.enums.FlagEnum;
-import com.neptune.cloud.drive.server.common.enums.FolderEnum;
+import com.neptune.cloud.drive.server.common.enums.DeleteEnum;
+import com.neptune.cloud.drive.server.common.enums.DirectoryEnum;
 import com.neptune.cloud.drive.server.context.CreateUserFolderContext;
+import com.neptune.cloud.drive.server.context.GetUserRootDirContext;
 import com.neptune.cloud.drive.server.mapper.UserFileMapper;
 import com.neptune.cloud.drive.server.model.UserFile;
 import com.neptune.cloud.drive.server.service.IUserFileService;
@@ -22,7 +24,12 @@ import java.util.Objects;
 public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> implements IUserFileService {
 
     @Override
-    public long createUserFolder(CreateUserFolderContext context) {
+    public long createUserRootDir(CreateUserFolderContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 创建用户根目录
         return createUserFile(
                 context.getUserId(),
                 context.getParentId(),
@@ -30,13 +37,24 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 context.getFolderName(),
                 StringConstant.EMPTY,
                 FileType.EMPTY,
-                FolderEnum.YES);
+                DirectoryEnum.YES);
     }
+
+    @Override
+    public UserFile selectUserRootDir(GetUserRootDirContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询用户根目录
+        return selectUserRootDir(context.getUserId());
+    }
+
 
     /**
      * 创建文件/目录
      */
-    public long createUserFile(long userId, long parentId, long realId, String filename, String description, FileType fileType, FolderEnum isFolder) {
+    private long createUserFile(long userId, long parentId, long realId, String filename, String description, FileType fileType, DirectoryEnum isFolder) {
         // 1. 封装文件实体
         UserFile file = assembleUserFile(userId, parentId, realId, filename, description, fileType, isFolder);
         // 2. 判断文件实体是否为空
@@ -53,7 +71,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 封装文件实体
      */
-    private UserFile assembleUserFile(long userId, long parentId, long realId, String filename, String description, FileType fileType, FolderEnum isFolder) {
+    private UserFile assembleUserFile(long userId, long parentId, long realId, String filename, String description, FileType fileType, DirectoryEnum isFolder) {
         // 1. 为重复的文件名添加标识符
         filename = generateUniqueFilename(userId, parentId, filename, isFolder);
         // 2. 封装文件实体信息
@@ -65,7 +83,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 .setFileSizeDesc(description)
                 .setFileType(fileType.getType())
                 .setFolderFlag(isFolder.getFlag())
-                .setDelFlag(FlagEnum.NO.getFlag())
+                .setDelFlag(DeleteEnum.NO.getFlag())
                 .setCreateUser(userId)
                 .setUpdateUser(userId)
                 .setCreateTime(new Date())
@@ -75,7 +93,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 生成唯一的文件名
      */
-    private String generateUniqueFilename(long userId, long parentId, String filename, FolderEnum isFolder) {
+    private String generateUniqueFilename(long userId, long parentId, String filename, DirectoryEnum isFolder) {
         // 1. 获取文件名称和扩展名的分割处
         int filenameSuffixPosition = filename.lastIndexOf(StringConstant.POINT);
         // 2. 获取文件名称和文件扩展名
@@ -100,17 +118,27 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 .toString();
     }
 
-    private int getUserFilenameCount(long userId, long parentId, String filenameWithoutSuffix, FolderEnum isFolder) {
+    private int getUserFilenameCount(long userId, long parentId, String filenameWithoutSuffix, DirectoryEnum isFolder) {
         // 1. 封装查询条件
         QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
                 .eq("user_id", userId)
                 .eq("parent_id", parentId)
                 .eq("folder_flag", isFolder.getFlag())
-                .eq("del_flag", FlagEnum.NO.getFlag())
+                .eq("del_flag", DeleteEnum.NO.getFlag())
                 .likeLeft("filename", filenameWithoutSuffix);
         // 2. 查询数量
         return count(queryWrapper);
     }
+
+    private UserFile selectUserRootDir(long userId) {
+        QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
+                .eq("user_id", userId)
+                .eq("parent_id", FileConstant.ROOT_PARENT_ID)
+                .eq("folder_flag", DirectoryEnum.YES.getFlag())
+                .eq("del_flag", DeleteEnum.NO.getFlag());
+        return getOne(queryWrapper);
+    }
+
 }
 
 

@@ -113,7 +113,7 @@ public class LoginAspect {
         if (Objects.isNull(cache)) {
             return false;
         }
-        // 7. 获取缓存中的 token
+        // 7. 获取缓存中的 token: 如果没有使用缓存, 就需要根据用户 ID 在数据库中查询
         String accessToken = cache.get(CacheConstant.USER_LOGIN_PREFIX + userId, String.class);
         // 8. 比较 token 是否相同
         if (!StringUtils.equals(loginToken, accessToken)) {

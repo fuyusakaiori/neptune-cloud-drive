@@ -5,6 +5,8 @@ import com.neptune.cloud.drive.server.model.User;
 
 public interface UserMapper extends BaseMapper<User> {
 
+    String selectUserByUsername(String username);
+
 }
 
 

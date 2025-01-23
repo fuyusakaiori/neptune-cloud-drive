@@ -4,11 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * 是否删除
+ * 是否为目录
  */
 @Getter
 @AllArgsConstructor
-public enum FlagEnum {
+public enum DirectoryEnum {
 
     NO(0),
 
