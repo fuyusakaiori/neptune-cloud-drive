@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.context;
+package com.neptune.cloud.drive.server.context.file;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,11 +9,16 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class GetUserRootDirContext {
+public class GetRealFileContext {
 
     /**
      * 用户 ID
      */
     private long userId;
+
+    /**
+     * 文件唯一标识符
+     */
+    private String identifier;
 
 }

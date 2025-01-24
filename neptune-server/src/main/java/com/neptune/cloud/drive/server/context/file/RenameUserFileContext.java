@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.context;
+package com.neptune.cloud.drive.server.context.file;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,7 +9,7 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class ChangePasswordContext {
+public class RenameUserFileContext {
 
     /**
      * 用户 ID
@@ -17,14 +17,13 @@ public class ChangePasswordContext {
     private long userId;
 
     /**
-     * 用户旧密码
+     * 文件 ID
      */
-    private String oldPassword;
+    private long fileId;
 
     /**
-     * 用户新密码
+     * 新的文件名称
      */
-    private String newPassword;
-
+    private String newFilename;
 
 }

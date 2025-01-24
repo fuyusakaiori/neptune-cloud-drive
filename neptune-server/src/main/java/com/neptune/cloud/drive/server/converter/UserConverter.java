@@ -1,10 +1,10 @@
 package com.neptune.cloud.drive.server.converter;
 
-import com.neptune.cloud.drive.server.context.*;
+import com.neptune.cloud.drive.server.context.user.*;
 import com.neptune.cloud.drive.server.model.User;
 import com.neptune.cloud.drive.server.model.UserFile;
-import com.neptune.cloud.drive.server.request.*;
-import com.neptune.cloud.drive.server.response.UserResponse;
+import com.neptune.cloud.drive.server.request.user.*;
+import com.neptune.cloud.drive.server.vo.UserInfoVO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -52,6 +52,6 @@ public interface UserConverter {
     @Mapping(source = "user.username", target = "username")
     @Mapping(source = "dir.fileId", target = "rootDirId")
     @Mapping(source = "dir.filename", target = "rootDirName")
-    UserResponse assembleUserResponse(User user, UserFile dir);
+    UserInfoVO assembleUserResponse(User user, UserFile dir);
 
 }

@@ -3,8 +3,8 @@ package com.neptune.cloud.drive.server.service;
 import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.server.CloudDriveBootstrap;
 import com.neptune.cloud.drive.server.common.constant.UserConstant;
-import com.neptune.cloud.drive.server.context.*;
-import com.neptune.cloud.drive.server.response.UserResponse;
+import com.neptune.cloud.drive.server.context.user.*;
+import com.neptune.cloud.drive.server.vo.UserInfoVO;
 import com.neptune.cloud.drive.util.JwtUtil;
 import org.junit.Assert;
 import org.junit.Test;
@@ -217,7 +217,7 @@ public class UserServiceTest {
 
         GetUserInfoContext userInfoContext = getUserInfoContext(loginContext.getUserId());
         // 5. 查询用户信息
-        UserResponse info = userService.info(userInfoContext);
+        UserInfoVO info = userService.info(userInfoContext);
         Assert.assertNotNull(info);
     }
 

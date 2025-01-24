@@ -1,9 +1,9 @@
 package com.neptune.cloud.drive.server.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.neptune.cloud.drive.server.context.*;
+import com.neptune.cloud.drive.server.context.user.*;
 import com.neptune.cloud.drive.server.model.User;
-import com.neptune.cloud.drive.server.response.UserResponse;
+import com.neptune.cloud.drive.server.vo.UserInfoVO;
 
 public interface IUserService extends IService<User> {
 
@@ -21,5 +21,5 @@ public interface IUserService extends IService<User> {
 
     void changePassword(ChangePasswordContext context);
 
-    UserResponse info(GetUserInfoContext context);
+    UserInfoVO info(GetUserInfoContext context);
 }

@@ -1,7 +1,10 @@
 package com.neptune.cloud.drive.server.service.impl;
 
+import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.neptune.cloud.drive.constant.BasicConstant;
 import com.neptune.cloud.drive.constant.StringConstant;
 import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.response.ResponseCode;
@@ -9,37 +12,71 @@ import com.neptune.cloud.drive.server.common.constant.FileConstant;
 import com.neptune.cloud.drive.server.common.enums.FileType;
 import com.neptune.cloud.drive.server.common.enums.DeleteEnum;
 import com.neptune.cloud.drive.server.common.enums.DirectoryEnum;
-import com.neptune.cloud.drive.server.context.CreateUserFolderContext;
-import com.neptune.cloud.drive.server.context.GetUserRootDirContext;
+import com.neptune.cloud.drive.server.common.event.DeleteUserFileEvent;
+import com.neptune.cloud.drive.server.context.file.*;
+import com.neptune.cloud.drive.server.context.user.GetUserRootDirContext;
+import com.neptune.cloud.drive.server.converter.UserFileConverter;
 import com.neptune.cloud.drive.server.mapper.UserFileMapper;
+import com.neptune.cloud.drive.server.model.File;
 import com.neptune.cloud.drive.server.model.UserFile;
+import com.neptune.cloud.drive.server.service.IFileService;
 import com.neptune.cloud.drive.server.service.IUserFileService;
+import com.neptune.cloud.drive.server.vo.UserFileVO;
+import com.neptune.cloud.drive.util.FileUtil;
 import com.neptune.cloud.drive.util.IdUtil;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-@Service(value = "userFileService")
-public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> implements IUserFileService {
+@Service
+public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> implements IUserFileService, ApplicationContextAware {
+
+    @Autowired
+    private IFileService fileService;
+
+    @Autowired
+    private UserFileConverter userFileConverter;
+
+
+    @Autowired
+    ApplicationContext applicationContext;
 
     @Override
-    public long createUserRootDir(CreateUserFolderContext context) {
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
+
+    /**
+     * 创建用户目录
+     */
+    @Override
+    public long createUserDirectory(CreateUserDirectoryContext context) {
         // 0. 判断上下文是否为空
         if (Objects.isNull(context)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
-        // 1. 创建用户根目录
+        // 1. 创建用户目录
         return createUserFile(
                 context.getUserId(),
                 context.getParentId(),
                 0,
-                context.getFolderName(),
+                context.getDirectoryName(),
                 StringConstant.EMPTY,
-                FileType.EMPTY,
+                0,
                 DirectoryEnum.YES);
     }
 
+    /**
+     * 查询用户根目录
+     */
     @Override
     public UserFile selectUserRootDir(GetUserRootDirContext context) {
         // 0. 判断上下文是否为空
@@ -50,11 +87,89 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         return selectUserRootDir(context.getUserId());
     }
 
+    /**
+     * 重命名用户文件
+     */
+    @Override
+    public void renameUserFile(RenameUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 判断重命名文件的 ID 是否有效
+        checkRenameUserFile(context.getUserId(), context.getFileId(), context.getNewFilename());
+        // 2. 重命名文件
+        doRenameUserFile(context.getUserId(), context.getFileId(), context.getNewFilename());
+    }
 
+    /**
+     * 删除用户文件
+     */
+    @Override
+    public void deleteUserFile(DeleteUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 判断删除文件的 ID 是否有效
+        checkDeleteUserFile(context.getUserId(), context.getFileIdList());
+        // 2. 逻辑删除文件
+        doDeleteUserFile(context.getUserId(), context.getFileIdList());
+        // 3. 发布删除文件的事件, 交给存储引擎删除
+        afterDeleteUserFile(context.getFileIdList());
+    }
+
+    /**
+     * 秒传用户文件
+     */
+    @Override
+    public boolean secondUploadUserFile(SecondUploadUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 根据文件唯一标识符查询真实的文件
+        File file = selectUserFileIdentifier(context.getUserId(), context.getIdentifier());
+        // 2. 判断是否查询到真实的文件
+        if (Objects.isNull(file)) {
+            return false;
+        }
+        // 2. 如果存在对应的文件, 那么就链接到用户文件中
+        long userFileId = createUserFile(
+                context.getUserId(),
+                context.getParentId(),
+                file.getFileId(),
+                // 注: 用户文件名可能和真实文件名不同, 不要使用真实文件名
+                context.getFilename(),
+                file.getFileSizeDesc(),
+                FileType.getFileTypeCode(FileUtil.getFileSuffix(context.getFilename())),
+                DirectoryEnum.NO);
+        // 3. 判断是否链接成功
+        return userFileId > 0;
+    }
+
+    /**
+     * 查询用户文件列表
+     */
+    @Override
+    public List<UserFileVO> listUserFiles(ListUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询用户目录的文件列表
+        List<UserFile> userFiles = baseMapper.listUserFiles(context.getUserId(), context.getParentId(), context.getFileTypes());
+        // 2. 转换为返回结果
+        return userFiles.stream()
+                .map(userFile -> userFileConverter.userFile2UserFileVO(userFile))
+                .collect(Collectors.toList());
+    }
+
+    //============================================= private =============================================
     /**
      * 创建文件/目录
      */
-    private long createUserFile(long userId, long parentId, long realId, String filename, String description, FileType fileType, DirectoryEnum isFolder) {
+    private long createUserFile(long userId, long parentId, long realId, String filename, String description, int fileType, DirectoryEnum isFolder) {
         // 1. 封装文件实体
         UserFile file = assembleUserFile(userId, parentId, realId, filename, description, fileType, isFolder);
         // 2. 判断文件实体是否为空
@@ -71,7 +186,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 封装文件实体
      */
-    private UserFile assembleUserFile(long userId, long parentId, long realId, String filename, String description, FileType fileType, DirectoryEnum isFolder) {
+    private UserFile assembleUserFile(long userId, long parentId, long realId, String filename, String description, int fileType, DirectoryEnum isFolder) {
         // 1. 为重复的文件名添加标识符
         filename = generateUniqueFilename(userId, parentId, filename, isFolder);
         // 2. 封装文件实体信息
@@ -81,7 +196,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 .setRealFileId(realId)
                 .setFilename(filename)
                 .setFileSizeDesc(description)
-                .setFileType(fileType.getType())
+                .setFileType(fileType)
                 .setFolderFlag(isFolder.getFlag())
                 .setDelFlag(DeleteEnum.NO.getFlag())
                 .setCreateUser(userId)
@@ -104,7 +219,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             filenameSuffix = filename.substring(filenameSuffixPosition);
         }
         // 3. 获取重复的文件数量
-        int count = getUserFilenameCount(userId, parentId, filenameWithoutSuffix, isFolder);
+        int count = selectUserFilenameCount(userId, parentId, filenameWithoutSuffix, isFolder);
         // 4. 判断是否存在重复的文件
         if (count == 0) {
             return filename;
@@ -118,7 +233,10 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 .toString();
     }
 
-    private int getUserFilenameCount(long userId, long parentId, String filenameWithoutSuffix, DirectoryEnum isFolder) {
+    /**
+     * 获取用户相同文件的数量
+     */
+    private int selectUserFilenameCount(long userId, long parentId, String filenameWithoutSuffix, DirectoryEnum isFolder) {
         // 1. 封装查询条件
         QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
                 .eq("user_id", userId)
@@ -130,6 +248,9 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         return count(queryWrapper);
     }
 
+    /**
+     * 查询用户根目录
+     */
     private UserFile selectUserRootDir(long userId) {
         QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
                 .eq("user_id", userId)
@@ -139,6 +260,123 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         return getOne(queryWrapper);
     }
 
+    /**
+     * 校验重命名的文件是否合法
+     */
+    private void checkRenameUserFile(long userId, long fileId, String newFilename) {
+        // 1. 根据文件 ID 查询文件信息
+        UserFile userFile = getById(fileId);
+        // 2. 判断是否查询到文案金
+        if (Objects.isNull(userFile)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "重命名的文件不存在");
+        }
+        // 3. 判断查询到的文件 ID 和重命名的文件 ID 是否相同
+        if (userFile.getFileId() != fileId) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "重命名的文件不存在");
+        }
+        // 4. 判断查询到的文件所属用户的 ID 是否和重命名文件所属用户 ID 相同
+        if (userFile.getUserId() != userId) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "不允许重命名其他用户的文件");
+        }
+        // 5. 判断新的文件名字是否和原来的名字相同
+        if (userFile.getFilename().equals(newFilename)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "新的文件名字不能和旧的文件名字相同");
+        }
+        // 6. 判断新的文件名字是否和目录下其他文件名字相同
+        QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
+                .eq("parent_id", userFile.getParentId())
+                .eq("filename", newFilename);
+        if (count(queryWrapper) > 0) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "目录下已经存在相同名字的文件, 请更换新的文件名称");
+        }
+    }
+
+    /**
+     * 重命名文件
+     */
+    private void doRenameUserFile(long userId, long fileId, String newFilename) {
+        UpdateWrapper<UserFile> updateWrapper = new UpdateWrapper<UserFile>()
+                .eq("user_id", userId)
+                .eq("file_id", fileId)
+                .set("filename", newFilename)
+                .set("update_time", new Date());
+        if (!update(updateWrapper)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "重命名文件失败");
+        }
+    }
+
+    /**
+     * 校验删除的文件是否合法
+     */
+    private void checkDeleteUserFile(long userId, List<Long> fileIdList) {
+        // 1. 根据文件 ID 查询文件信息
+        List<UserFile> userFiles = listByIds(fileIdList);
+        // 2. 判断查询的文件数量是否符合预期
+        if (CollectionUtil.isEmpty(userFiles) || userFiles.size() != fileIdList.size()) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "需要删除的文件不合法");
+        }
+        // 3. 将查询到的文件转换为对应的文件 ID
+        Set<Long> fileIdSet = userFiles.stream().map(UserFile::getFileId).collect(Collectors.toSet());
+        // 4. 记录查询到的文件 ID 数量
+        int oldSize = fileIdSet.size();
+        // 5. 将需要删除的文件 ID 放入查询到的文件 ID 集合中
+        fileIdSet.addAll(fileIdList);
+        // 6. 记录新的文件 ID 数量
+        int newSize = fileIdSet.size();
+        // 7. 判断查询的文件是否和删除的文件完全一致
+        if (oldSize != newSize) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "需要删除的文件不合法");
+        }
+        // 8. 将查询到的文件转换为对应的用户 ID
+        Set<Long> userIdSet = userFiles.stream().map(UserFile::getUserId).collect(Collectors.toSet());
+        // 9. 判断用户 ID 是否相同
+        if (userIdSet.size() != 1) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "不允许删除其他用户的文件");
+        }
+        // 10. 判断删除文件所属的用户是否合法
+        if (!userIdSet.contains(userId)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "不允许删除其他用户的文件");
+        }
+    }
+
+    /**
+     * 逻辑删除用户文件
+     */
+    private void doDeleteUserFile(long userId, List<Long> fileIdList) {
+        // 1. 封装更新条件
+        UpdateWrapper<UserFile> updateWrapper = new UpdateWrapper<UserFile>()
+                .eq("user_id", userId)
+                .in("file_id", fileIdList)
+                .set("del_flag", DeleteEnum.YES.getFlag())
+                .set("update_time", new Date());
+        // 2. 删除文件
+        if (!update(updateWrapper)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "删除文件失败");
+        }
+    }
+
+    /**
+     * 删除用户文件的后置处理
+     */
+    private void afterDeleteUserFile(List<Long> fileIdList) {
+        applicationContext.publishEvent(new DeleteUserFileEvent(this, fileIdList));
+    }
+
+    /**
+     * 根据文件唯一标识符查询真实文件
+     */
+    private File selectUserFileIdentifier(long userId, String identifier) {
+        // 1. 根据唯一标识符查询真实文件
+        // TODO 暂时不清楚为什么会查询到多个文件
+        List<File> files = fileService.listRealFiles(new GetRealFileContext()
+                .setUserId(userId).setIdentifier(identifier));
+        // 2. 判断文件集合是否为空
+        if (CollectionUtil.isEmpty(files)) {
+            return null;
+        }
+        // 3. 仅使用第一个文件
+        return files.get(BasicConstant.ZERO_INT);
+    }
 }
 
 

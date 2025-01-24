@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.request;
+package com.neptune.cloud.drive.server.request.user;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
@@ -15,9 +15,9 @@ import java.io.Serializable;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class ResetPasswordRequest implements Serializable {
+public class ChangePasswordRequest implements Serializable {
 
-    private static final long serialVersionUID = 8023246325715862678L;
+    private static final long serialVersionUID = 3992645752639976371L;
 
     /**
      * 用户账号
@@ -28,18 +28,19 @@ public class ResetPasswordRequest implements Serializable {
     private String username;
 
     /**
-     * 用户密码
+     * 用户旧密码
      */
-    @ApiModelProperty(value = "用户密码", required = true)
-    @NotBlank(message = "用户密码不可以为空")
-    @Length(min = 8, max = 16, message = "请输入 8-16 位的密码")
-    private String password;
+    @ApiModelProperty(value = "用户旧密码", required = true)
+    @NotBlank(message = "用户旧密码不可以为空")
+    @Length(min = 8, max = 16, message = "请输入 8-16 位的旧密码")
+    private String oldPassword;
 
     /**
-     * 用户重设密码的临时 token
+     * 用户新密码
      */
-    @ApiModelProperty(value = "用户重置密码临时 token", required = true)
-    @NotBlank(message = "用户没有访问权限")
-    private String token;
+    @ApiModelProperty(value = "用户新密码", required = true)
+    @NotBlank(message = "用户新密码不可以为空")
+    @Length(min = 8, max = 16, message = "请输入 8-16 位的新密码")
+    private String newPassword;
 
 }

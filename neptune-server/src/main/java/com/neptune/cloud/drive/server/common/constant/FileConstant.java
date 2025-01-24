@@ -12,4 +12,9 @@ public class FileConstant {
      */
     public final static String ROOT_PARENT_CN_NAME = "全部文件";
 
+    /**
+     * 全部文件类型
+     */
+    public final static String ALL_TYPE_FILE = "-1";
+
 }

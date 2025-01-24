@@ -25,4 +25,20 @@
         file_size_desc,file_type,del_flag,create_user,create_time,
         update_user,update_time
     </sql>
+
+    <select id="listUserFiles" resultType="com.neptune.cloud.drive.server.model.UserFile">
+        select *
+        from cloud_drive_user_file
+        where user_id = #{userId}
+        <if test="parentId != 0">
+            and parent_id = #{parentId}
+        </if>
+        <if test="fileTypes != null">
+            and file_type in
+            <foreach collection="fileTypes" open="(" close=")" separator="," item="fileType">
+                #{fileType}
+            </foreach>
+        </if>
+        and del_flag = 0;
+    </select>
 </mapper>

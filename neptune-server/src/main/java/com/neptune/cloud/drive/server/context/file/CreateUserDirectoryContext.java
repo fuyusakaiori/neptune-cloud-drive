@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.context;
+package com.neptune.cloud.drive.server.context.file;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,7 +11,7 @@ import java.io.Serializable;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class CreateUserFolderContext implements Serializable {
+public class CreateUserDirectoryContext implements Serializable {
 
     private static final long serialVersionUID = 7434918941243131244L;
 
@@ -28,6 +28,6 @@ public class CreateUserFolderContext implements Serializable {
     /**
      * 目录的名称
      */
-    private String folderName;
+    private String directoryName;
 
 }

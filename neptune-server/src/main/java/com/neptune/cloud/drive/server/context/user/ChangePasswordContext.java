@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.context;
+package com.neptune.cloud.drive.server.context.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,7 +9,7 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class LoginUserContext {
+public class ChangePasswordContext {
 
     /**
      * 用户 ID
@@ -17,13 +17,14 @@ public class LoginUserContext {
     private long userId;
 
     /**
-     * 用户账号
+     * 用户旧密码
      */
-    private String username;
+    private String oldPassword;
 
     /**
-     * 用户密码
+     * 用户新密码
      */
-    private String password;
+    private String newPassword;
+
 
 }

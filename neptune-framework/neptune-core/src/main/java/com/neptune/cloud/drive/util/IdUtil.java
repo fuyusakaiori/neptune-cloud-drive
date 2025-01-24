@@ -4,6 +4,8 @@ import cn.hutool.core.codec.Base64;
 import cn.hutool.core.util.ArrayUtil;
 import com.neptune.cloud.drive.constant.BasicConstant;
 import com.neptune.cloud.drive.constant.StringConstant;
+import com.neptune.cloud.drive.exception.BusinessException;
+import com.neptune.cloud.drive.response.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -187,7 +189,7 @@ public class IdUtil {
             try {
                 return decrypt(id);
             } catch (Exception exception) {
-                throw new RuntimeException(exception);
+                throw new BusinessException(ResponseCode.ERROR.getCode(), "解析文件 ID 失败");
             }
         }).collect(Collectors.toList());
     }

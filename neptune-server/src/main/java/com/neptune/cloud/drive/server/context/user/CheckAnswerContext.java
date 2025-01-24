@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.context;
+package com.neptune.cloud.drive.server.context.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,17 +9,12 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class RegisterUserContext {
+public class CheckAnswerContext {
 
     /**
      * 用户账号
      */
     private String username;
-
-    /**
-     * 用户密码
-     */
-    private String password;
 
     /**
      * 用户的密保问题

@@ -3,9 +3,9 @@ package com.neptune.cloud.drive.server.controller;
 import com.neptune.cloud.drive.response.Response;
 import com.neptune.cloud.drive.response.ResponseCode;
 import com.neptune.cloud.drive.server.common.annotation.LoginIgnore;
-import com.neptune.cloud.drive.server.context.*;
-import com.neptune.cloud.drive.server.request.*;
-import com.neptune.cloud.drive.server.response.UserResponse;
+import com.neptune.cloud.drive.server.context.user.*;
+import com.neptune.cloud.drive.server.request.user.*;
+import com.neptune.cloud.drive.server.vo.UserInfoVO;
 import com.neptune.cloud.drive.server.threadlocal.UserThreadLocal;
 import com.neptune.cloud.drive.server.converter.UserConverter;
 import com.neptune.cloud.drive.server.service.IUserService;
@@ -198,7 +198,7 @@ public class UserController {
         Long userId = UserThreadLocal.get();
         // 3. 判断用户 ID 是否为空
         if (Objects.isNull(userId)) {
-            log.error("UserController changePassword: 用户未登录, 不允许直接登出");
+            log.error("UserController changePassword: 用户未登录, 不允许更新密码");
             return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
         }
         // 4. 在上下文中设置用户 ID
@@ -218,7 +218,7 @@ public class UserController {
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
     @GetMapping("/info")
-    public Response<UserResponse> info() {
+    public Response<UserInfoVO> info() {
         log.info("UserController info: 开始查询用户的基本信息");
         // 1. 获取用户 ID
         Long userId = UserThreadLocal.get();
@@ -227,10 +227,10 @@ public class UserController {
             return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
         }
         // 3. 调用查询用户信息的方法
-        UserResponse response = userService.info(new GetUserInfoContext(userId));
+        UserInfoVO userInfo = userService.info(new GetUserInfoContext(userId));
         // 4. 返回用户信息
-        log.info("UserController info: 查询用户的基本信息结束, response = {}", response);
-        return Response.success(response);
+        log.info("UserController info: 查询用户的基本信息结束, user = {}", userInfo);
+        return Response.success(userInfo);
     }
 
 }

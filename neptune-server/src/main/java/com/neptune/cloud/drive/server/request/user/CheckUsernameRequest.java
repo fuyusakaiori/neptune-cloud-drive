@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.request;
+package com.neptune.cloud.drive.server.request.user;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;

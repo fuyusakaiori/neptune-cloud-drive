@@ -8,12 +8,13 @@ import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.response.ResponseCode;
 import com.neptune.cloud.drive.server.common.constant.FileConstant;
 import com.neptune.cloud.drive.server.common.constant.UserConstant;
-import com.neptune.cloud.drive.server.context.*;
+import com.neptune.cloud.drive.server.context.file.CreateUserDirectoryContext;
+import com.neptune.cloud.drive.server.context.user.*;
 import com.neptune.cloud.drive.server.converter.UserConverter;
 import com.neptune.cloud.drive.server.mapper.UserMapper;
 import com.neptune.cloud.drive.server.model.User;
 import com.neptune.cloud.drive.server.model.UserFile;
-import com.neptune.cloud.drive.server.response.UserResponse;
+import com.neptune.cloud.drive.server.vo.UserInfoVO;
 import com.neptune.cloud.drive.server.service.IUserFileService;
 import com.neptune.cloud.drive.server.service.IUserService;
 import com.neptune.cloud.drive.util.IdUtil;
@@ -32,7 +33,7 @@ import java.util.Date;
 import java.util.Objects;
 
 @Slf4j
-@Service(value = "userService")
+@Service
 public class UserService extends ServiceImpl<UserMapper, User> implements IUserService {
 
     @Autowired
@@ -178,7 +179,7 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
      * 查询用户信息
      */
     @Override
-    public UserResponse info(GetUserInfoContext context) {
+    public UserInfoVO info(GetUserInfoContext context) {
         // 0. 判断上下文是否为空
         if (Objects.isNull(context)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
@@ -255,12 +256,12 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 2. 封装创建根目录的上下文
-        CreateUserFolderContext context = new CreateUserFolderContext()
+        CreateUserDirectoryContext context = new CreateUserDirectoryContext()
                 .setUserId(user.getUserId())
                 .setParentId(FileConstant.ROOT_PARENT_ID)
-                .setFolderName(FileConstant.ROOT_PARENT_CN_NAME);
+                .setDirectoryName(FileConstant.ROOT_PARENT_CN_NAME);
         // 3. 调用创建根目录的方法
-        long id = userFileService.createUserRootDir(context);
+        long id = userFileService.createUserDirectory(context);
         // 4. 判断是否创建成功
         if (id < 0) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户根目录创建失败");

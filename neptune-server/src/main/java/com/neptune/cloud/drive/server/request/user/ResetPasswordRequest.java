@@ -1,6 +1,5 @@
-package com.neptune.cloud.drive.server.request;
+package com.neptune.cloud.drive.server.request.user;
 
-import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,17 +11,13 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 import java.io.Serializable;
 
-/**
- * 注册用户的请求
- */
-@ApiModel(value = "用户注册参数")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class RegisterUserRequest implements Serializable {
+public class ResetPasswordRequest implements Serializable {
 
-    private static final long serialVersionUID = 4308555141084782468L;
+    private static final long serialVersionUID = 8023246325715862678L;
 
     /**
      * 用户账号
@@ -41,18 +36,10 @@ public class RegisterUserRequest implements Serializable {
     private String password;
 
     /**
-     * 用户的密保问题
+     * 用户重设密码的临时 token
      */
-    @ApiModelProperty(value = "密保问题", required = true)
-    @NotBlank(message = "用户账号的密保问题不可以为空")
-    @Length(max = 100, message = "密保问题不可以超过 100 个字符")
-    private String question;
+    @ApiModelProperty(value = "用户重置密码临时 token", required = true)
+    @NotBlank(message = "用户没有访问权限")
+    private String token;
 
-    /**
-     * 用户的密保答案
-     */
-    @ApiModelProperty(value = "密保答案", required = true)
-    @NotBlank(message = "用户账号的密保答案不可以为空")
-    @Length(max = 100, message = "密保问题答案不可以超过 100 个字符")
-    private String answer;
 }

@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.response;
+package com.neptune.cloud.drive.server.vo;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.neptune.cloud.drive.serializer.IdEncryptSerializer;
@@ -8,15 +8,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
 import java.io.Serializable;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class UserResponse implements Serializable {
+public class UserInfoVO implements Serializable {
 
     private static final long serialVersionUID = -2936499854730811364L;
 

@@ -1,34 +1,38 @@
-package com.neptune.cloud.drive.server.context;
+package com.neptune.cloud.drive.server.context.file;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-import org.hibernate.validator.constraints.Length;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
+import java.io.Serializable;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class CheckAnswerContext {
+public class SecondUploadUserFileContext {
 
     /**
-     * 用户账号
+     * 用户 ID
      */
-    private String username;
+    private long userId;
 
     /**
-     * 用户的密保问题
+     * 目录 ID
      */
-    private String question;
+    private long parentId;
 
     /**
-     * 用户的密保答案
+     * 文件唯一标识符
      */
-    private String answer;
+    private String identifier;
+
+    /**
+     * 文件名称
+     */
+    private String filename;
 
 }
