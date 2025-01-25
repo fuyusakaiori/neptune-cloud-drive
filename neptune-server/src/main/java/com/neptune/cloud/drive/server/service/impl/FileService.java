@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.neptune.cloud.drive.constant.StringConstant;
 import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.response.ResponseCode;
+import com.neptune.cloud.drive.server.common.constant.HttpConstant;
 import com.neptune.cloud.drive.server.common.event.RecordErrorLogEvent;
+import com.neptune.cloud.drive.server.context.file.DownloadFileContext;
 import com.neptune.cloud.drive.server.context.file.GetFileContext;
 import com.neptune.cloud.drive.server.context.file.MergeFileChunkContext;
 import com.neptune.cloud.drive.server.context.file.UploadFileContext;
@@ -28,7 +30,9 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -90,6 +94,10 @@ public class FileService extends ServiceImpl<FileMapper, File> implements IFileS
      */
     @Override
     public void mergeFileChunk(MergeFileChunkContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
         // 1. 调用文件分片接口合并分片
         String filePath = doMergeFileChunk(context.getUserId(), context.getIdentifier());
         // 2. 记录分片合并后的文件
@@ -101,6 +109,47 @@ public class FileService extends ServiceImpl<FileMapper, File> implements IFileS
                 filePath);
     }
 
+    /**
+     * 下载文件
+     */
+    @Override
+    public void downloadFile(DownloadFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询文件
+        File file = getById(context.getFileId());
+        // 2. 判断是否查询到文件
+        if (Objects.isNull(file)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "下载的文件不存在");
+        }
+        // 3. 下载文件前的预处理
+        beforeDownloadFile(file.getFilename(), Long.parseLong(file.getFileSize()), context.getResponse());
+        // 4. 调用存储引擎下载文件
+        doDownloadFile(context, file.getRealPath());
+    }
+
+    /**
+     * 预览文件
+     */
+    @Override
+    public void previewFile(DownloadFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询文件
+        File file = getById(context.getFileId());
+        // 2. 判断是否查询到文件
+        if (Objects.isNull(file)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "预览的文件不存在");
+        }
+        // 3. 预览文件前的预处理
+        beforePreviewFile(file.getFilePreviewContentType(), context.getResponse());
+        // 4. 调用存储引擎读取文件
+        doDownloadFile(context, file.getRealPath());
+    }
 
     //============================================== private ==============================================
 
@@ -203,4 +252,49 @@ public class FileService extends ServiceImpl<FileMapper, File> implements IFileS
         }
         return filePath;
     }
+
+    /**
+     * 下载文件前的预处理
+     */
+    private static void beforeDownloadFile(String fileName, long fileSize, HttpServletResponse response) {
+        // 1. 清空响应结果中的信息
+        response.reset();
+        // 2. 为响应结果添加对应的响应头信息
+        response.addHeader(HttpConstant.HTTP_CONTENT_TYPE, HttpConstant.HTTP_APPLICATION_OCTET_STREAM);
+        response.setContentType(HttpConstant.HTTP_APPLICATION_OCTET_STREAM);
+        // 3. 为响应结果添加对应的下载标识
+        try {
+            response.addHeader(
+                    HttpConstant.HTTP_CONTENT_DISPOSITION,
+                    HttpConstant.HTTP_CONTENT_DISPOSITION_ATTACHMENT + new String(fileName.getBytes(HttpConstant.GB2312), HttpConstant.IOS_8859_1));
+        } catch (UnsupportedEncodingException exception) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件下载失败");
+        }
+        // 4. 为响应结果设置文件大小
+        response.setContentLengthLong(fileSize);
+    }
+
+    /**
+     * 下载文件
+     */
+    private void doDownloadFile(DownloadFileContext context, String filePath) {
+        try {
+            storageEngine.downloadFile(new com.neptune.cloud.drive.storage.engine.core.context.DownloadFileContext()
+                    .setFilePath(filePath).setFile(context.getResponse().getOutputStream()));
+        } catch (IOException e) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件下载失败");
+        }
+    }
+
+    /**
+     * 预览文件前的预处理
+     */
+    private void beforePreviewFile(String previewType, HttpServletResponse response) {
+        // 1. 清空响应结果中的信息
+        response.reset();
+        // 2. 为响应结果添加对应的响应头信息
+        response.addHeader(HttpConstant.HTTP_CONTENT_TYPE, previewType);
+        response.setContentType(previewType);
+    }
+
 }

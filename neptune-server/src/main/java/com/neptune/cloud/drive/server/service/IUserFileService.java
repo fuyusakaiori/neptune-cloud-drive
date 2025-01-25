@@ -30,4 +30,8 @@ public interface IUserFileService extends IService<UserFile> {
     List<UploadChunkVO> listUploadedUserFileChunk(GetUserFileChunkContext context);
 
     void mergeUploadedUserFileChunk(MergeUserFileChunkContext context);
+
+    void downloadUserFile(DownloadUserFileContext context);
+
+    void previewUserFile(PreviewUserFileContext context);
 }

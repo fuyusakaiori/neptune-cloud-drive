@@ -9,6 +9,7 @@ import com.neptune.cloud.drive.constant.StringConstant;
 import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.response.ResponseCode;
 import com.neptune.cloud.drive.server.common.constant.FileConstant;
+import com.neptune.cloud.drive.server.common.constant.HttpConstant;
 import com.neptune.cloud.drive.server.common.enums.FileType;
 import com.neptune.cloud.drive.server.common.enums.DeleteEnum;
 import com.neptune.cloud.drive.server.common.enums.DirectoryEnum;
@@ -34,6 +35,9 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -223,6 +227,10 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
      */
     @Override
     public void mergeUploadedUserFileChunk(MergeUserFileChunkContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
         // 1. 调用文件接口合并文件
         mergeFileChunk(
                 context.getUserId(),
@@ -248,6 +256,52 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         if (userFileId <= 0) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "合并文件分片失败");
         }
+    }
+
+    /**
+     * 下载用户文件
+     */
+    @Override
+    public void downloadUserFile(DownloadUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询下载的文件
+        UserFile userFile = getById(context.getFileId());
+        // 2. 判断是否查询到需要下载的文件
+        if (Objects.isNull(userFile)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "下载的文件不存在");
+        }
+        // 3. 判断文件是否为目录: 如果需要支持, 那么就查询出所有文件, 然后并发下载
+        if (DirectoryEnum.YES.getFlag() == userFile.getFolderFlag()) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "不支持直接下载目录");
+        }
+        // 4. 调用文件接口下载文件
+        doDownloadUserFile(userFile.getRealFileId(), context.getResponse());
+    }
+
+    /**
+     * 预览文件
+     */
+    @Override
+    public void previewUserFile(PreviewUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询下载的文件
+        UserFile userFile = getById(context.getFileId());
+        // 2. 判断是否查询到需要下载的文件
+        if (Objects.isNull(userFile)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "下载的文件不存在");
+        }
+        // 3. 判断文件是否为目录: 如果需要支持, 那么就查询出所有文件, 然后并发下载
+        if (DirectoryEnum.YES.getFlag() == userFile.getFolderFlag()) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "不支持直接预览目录");
+        }
+        // 5. 调用文件接口预览文件
+        doPreviewUserFile(userFile.getRealFileId(), context.getResponse());
     }
 
     /**
@@ -528,6 +582,26 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 .setIdentifier(identifier)
                 .setFileName(fileName)
                 .setFileSize(fileSize));
+    }
+
+    /**
+     * 下载文件
+     */
+    private void doDownloadUserFile(long fileId, HttpServletResponse response) {
+        // 1. 调用文件接口下载文件
+        fileService.downloadFile(new DownloadFileContext()
+                .setFileId(fileId)
+                .setResponse(response));
+    }
+
+    /**
+     * 预览文件
+     */
+    private void doPreviewUserFile(long fileId, HttpServletResponse response) {
+        // 1. 调用文件接口下载文件
+        fileService.previewFile(new DownloadFileContext()
+                .setFileId(fileId)
+                .setResponse(response));
     }
 
 }

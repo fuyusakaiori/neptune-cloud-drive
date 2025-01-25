@@ -1,11 +1,9 @@
 package com.neptune.cloud.drive.storage.engine.core;
 
-import com.neptune.cloud.drive.storage.engine.core.context.DeleteFileContext;
-import com.neptune.cloud.drive.storage.engine.core.context.MergeFileChunkContext;
-import com.neptune.cloud.drive.storage.engine.core.context.StoreFileChunkContext;
-import com.neptune.cloud.drive.storage.engine.core.context.StoreFileContext;
+import com.neptune.cloud.drive.storage.engine.core.context.*;
 
 import java.io.IOException;
+import java.io.OutputStream;
 
 public interface StorageEngine {
 
@@ -28,4 +26,7 @@ public interface StorageEngine {
      * 合并文件分片
      */
     String mergeFileChunk(MergeFileChunkContext context) throws IOException;
+
+
+    void downloadFile(DownloadFileContext context) throws IOException;
 }

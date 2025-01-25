@@ -14,13 +14,13 @@ import com.neptune.cloud.drive.server.vo.UploadChunkVO;
 import com.neptune.cloud.drive.server.vo.UserFileVO;
 import com.neptune.cloud.drive.util.IdUtil;
 import io.swagger.annotations.ApiOperation;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.constraints.NotBlank;
 import java.util.Arrays;
 import java.util.List;
@@ -254,6 +254,67 @@ public class UserFileController {
     }
 
     /**
+     * 下载文件
+     */
+    @ApiOperation(
+            value = "下载文件",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @GetMapping("/file/download")
+    public Response<Void> downloadUserFile(@NotBlank(message = "文件 ID") @RequestParam(value = "fileId", required = false) long fileId,
+                                           @RequestParam(value = "response", required = false)HttpServletResponse response) {
+        log.info("UserFileController downloadUserFile: 开始下载文件, fileId = {}", fileId);
+        // 1. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 2. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController mergeUploadedUserFileChunk: 用户未登录, 不允许下载文件, fileId = {}", fileId);
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 3. 请求转换为上下文
+        DownloadUserFileContext context = new DownloadUserFileContext()
+                .setUserId(userId)
+                .setFileId(fileId)
+                .setResponse(response);
+        // 4. 调用下载文件的方法
+        userFileService.downloadUserFile(context);
+        log.info("UserFileController downloadUserFile: 下载文件结束, fileId = {}", fileId);
+        return Response.success();
+    }
+
+    /**
+     * 预览文件: 和下载文件不同的仅在于设置的响应头信息不同
+     */
+    @ApiOperation(
+            value = "预览文件",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @GetMapping("/file/download")
+    public Response<Void> previewUserFile(@NotBlank(message = "文件 ID") @RequestParam(value = "fileId", required = false) long fileId,
+                                           @RequestParam(value = "response", required = false)HttpServletResponse response) {
+        log.info("UserFileController previewUserFile: 开始预览文件, fileId = {}", fileId);
+        // 1. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 2. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController previewUserFile: 用户未登录, 不允许预览文件, fileId = {}", fileId);
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 3. 请求转换为上下文
+        PreviewUserFileContext context = new PreviewUserFileContext()
+                .setUserId(userId)
+                .setFileId(fileId)
+                .setResponse(response);
+        // 4. 调用下载文件的方法
+        userFileService.previewUserFile(context);
+        log.info("UserFileController previewUserFile: 预览文件结束, fileId = {}", fileId);
+        return Response.success();
+    }
+
+
+    /**
      * 获取已经上传的文件分片
      */
     @ApiOperation(
@@ -280,7 +341,6 @@ public class UserFileController {
         log.info("UserFileController listUploadedUserFileChunk: 查询文件分片结束, request = {}", request);
         return Response.success(chunks);
     }
-
 
 
     /**

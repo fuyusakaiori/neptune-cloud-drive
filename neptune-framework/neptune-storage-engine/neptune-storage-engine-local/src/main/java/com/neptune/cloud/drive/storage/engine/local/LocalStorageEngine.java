@@ -3,10 +3,7 @@ package com.neptune.cloud.drive.storage.engine.local;
 import cn.hutool.core.date.DateUtil;
 import com.neptune.cloud.drive.constant.StringConstant;
 import com.neptune.cloud.drive.storage.engine.core.AbstractStorageEngine;
-import com.neptune.cloud.drive.storage.engine.core.context.DeleteFileContext;
-import com.neptune.cloud.drive.storage.engine.core.context.MergeFileChunkContext;
-import com.neptune.cloud.drive.storage.engine.core.context.StoreFileChunkContext;
-import com.neptune.cloud.drive.storage.engine.core.context.StoreFileContext;
+import com.neptune.cloud.drive.storage.engine.core.context.*;
 import com.neptune.cloud.drive.storage.engine.local.config.LocalStorageEngineConfig;
 import com.neptune.cloud.drive.util.FileUtil;
 import com.neptune.cloud.drive.util.UUIDUtil;
@@ -15,13 +12,11 @@ import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -70,6 +65,9 @@ public class LocalStorageEngine extends AbstractStorageEngine {
         }
     }
 
+    /**
+     * 存储文件分片
+     */
     @Override
     protected String doStoreFileChunk(StoreFileChunkContext context) throws IOException {
         // 1. 获取分片基础路径
@@ -82,6 +80,9 @@ public class LocalStorageEngine extends AbstractStorageEngine {
         return filePath;
     }
 
+    /**
+     * 合并文件分片
+     */
     @Override
     protected String doMergeFileChunk(MergeFileChunkContext context) throws IOException {
         // 1. 获取文件的基础路径
@@ -102,6 +103,26 @@ public class LocalStorageEngine extends AbstractStorageEngine {
             FileUtils.forceDelete(new File(chunkPath));
         }
         return filePath;
+    }
+
+    /**
+     * 下载文件
+     */
+    @Override
+    protected void doDownloadFile(DownloadFileContext context) throws IOException {
+        // 1. 获取需要读取的文件的句柄
+        File file = new File(context.getFilePath());
+        // 2. 获取需要读取的文件的 channel
+        FileChannel inputChannel = new FileInputStream(file).getChannel();
+        // 3. 获取需要写入的文件的 channel
+        WritableByteChannel outputChannel = Channels.newChannel(context.getFile());
+        // 4. 零拷贝 (sendfile) 从输入 channel 到输出 channel
+        inputChannel.transferTo(0, inputChannel.size(), outputChannel);
+        // 5. 刷新
+        context.getFile().flush();
+        // 6. 关闭流
+        outputChannel.close();
+        inputChannel.close();
     }
 
     /**
