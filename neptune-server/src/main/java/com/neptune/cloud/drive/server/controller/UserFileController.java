@@ -291,7 +291,7 @@ public class UserFileController {
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
-    @GetMapping("/file/download")
+    @GetMapping("/file/preview")
     public Response<Void> previewUserFile(@NotBlank(message = "文件 ID") @RequestParam(value = "fileId", required = false) long fileId,
                                            @RequestParam(value = "response", required = false)HttpServletResponse response) {
         log.info("UserFileController previewUserFile: 开始预览文件, fileId = {}", fileId);
