@@ -259,7 +259,7 @@ public class UserFileController {
     @ApiOperation(
             value = "下载文件",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
-            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+            produces = MediaType.APPLICATION_OCTET_STREAM_VALUE
     )
     @GetMapping("/file/download")
     public Response<Void> downloadUserFile(@NotBlank(message = "文件 ID") @RequestParam(value = "fileId", required = false) long fileId,
@@ -289,7 +289,7 @@ public class UserFileController {
     @ApiOperation(
             value = "预览文件",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
-            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+            produces = MediaType.APPLICATION_OCTET_STREAM_VALUE
     )
     @GetMapping("/file/preview")
     public Response<Void> previewUserFile(@NotBlank(message = "文件 ID") @RequestParam(value = "fileId", required = false) long fileId,
