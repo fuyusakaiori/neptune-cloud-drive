@@ -10,6 +10,8 @@ import com.neptune.cloud.drive.server.converter.UserFileConverter;
 import com.neptune.cloud.drive.server.request.file.*;
 import com.neptune.cloud.drive.server.service.IUserFileService;
 import com.neptune.cloud.drive.server.threadlocal.UserThreadLocal;
+import com.neptune.cloud.drive.server.vo.DirectoryTreeNodeVO;
+import com.neptune.cloud.drive.server.vo.SearchFileVO;
 import com.neptune.cloud.drive.server.vo.UploadChunkVO;
 import com.neptune.cloud.drive.server.vo.UserFileVO;
 import com.neptune.cloud.drive.util.IdUtil;
@@ -313,6 +315,74 @@ public class UserFileController {
         return Response.success();
     }
 
+    /**
+     * 移动文件: 可以批量移动
+     */
+    @ApiOperation(
+            value = "移动文件",
+            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @PostMapping("/file/transfer")
+    public Response<Void> transferUserFile() {
+
+        return Response.success();
+    }
+
+    /**
+     * 拷贝文件: 可以批量拷贝
+     */
+    @ApiOperation(
+            value = "拷贝文件",
+            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @PostMapping("/file/copy")
+    public Response<Void> copyUserFile() {
+
+        return Response.success();
+    }
+
+    /**
+     * 搜索文件: (1) 使用模糊查询搜索文件 (2) 文件信息同步到 ElasticSearch, 全文搜索
+     */
+    @ApiOperation(
+            value = "搜索文件",
+            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @GetMapping("/file/search")
+    public Response<List<SearchFileVO>> searchUserFile() {
+
+        return Response.success();
+    }
+
+    /**
+     * 查询目录树: 保存用户文件时需要使用
+     */
+    @ApiOperation(
+            value = "查询用户目录树",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @GetMapping("/file/directory/tree")
+    public Response<List<DirectoryTreeNodeVO>> listUserDirectoryTree() {
+        log.info("UserFileController listUserDirectoryTree: 开始查询用户目录树");
+        // 1. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 2. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController listUserDirectoryTree: 用户未登录, 不允许查询用户目录树");
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 3. 设置用户 ID 到上下文中
+        GetDirectoryTreeContext context =
+                new GetDirectoryTreeContext().setUserId(userId);
+        // 4. 调用查询用户目录树的方法
+        List<DirectoryTreeNodeVO> tree = userFileService.listUserDirectoryTree(context);
+        log.info("UserFileController listUserDirectoryTree: 查询用户目录树结束, tree = {}", tree.size());
+        return Response.success(tree);
+    }
 
     /**
      * 获取已经上传的文件分片

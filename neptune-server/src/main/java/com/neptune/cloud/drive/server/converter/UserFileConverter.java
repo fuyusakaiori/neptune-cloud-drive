@@ -3,6 +3,7 @@ package com.neptune.cloud.drive.server.converter;
 import com.neptune.cloud.drive.server.context.file.*;
 import com.neptune.cloud.drive.server.model.UserFile;
 import com.neptune.cloud.drive.server.request.file.*;
+import com.neptune.cloud.drive.server.vo.DirectoryTreeNodeVO;
 import com.neptune.cloud.drive.server.vo.UserFileVO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -62,4 +63,11 @@ public interface UserFileConverter {
      */
     UserFileVO userFile2UserFileVO(UserFile userFile);
 
+    /**
+     * UserFile => DirectoryTreeNodeVO
+     */
+    @Mapping(target = "directoryId", source = "userFile.fileId")
+    @Mapping(target = "directoryName", source = "userFile.filename")
+    @Mapping(target = "children", expression = "java(com.google.common.collect.Lists.newArrayList())")
+    DirectoryTreeNodeVO UserFile2DirectoryTreeNodeVO(UserFile userFile);
 }

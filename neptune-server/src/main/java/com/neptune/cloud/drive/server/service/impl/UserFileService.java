@@ -9,7 +9,6 @@ import com.neptune.cloud.drive.constant.StringConstant;
 import com.neptune.cloud.drive.exception.BusinessException;
 import com.neptune.cloud.drive.response.ResponseCode;
 import com.neptune.cloud.drive.server.common.constant.FileConstant;
-import com.neptune.cloud.drive.server.common.constant.HttpConstant;
 import com.neptune.cloud.drive.server.common.enums.FileType;
 import com.neptune.cloud.drive.server.common.enums.DeleteEnum;
 import com.neptune.cloud.drive.server.common.enums.DirectoryEnum;
@@ -24,10 +23,12 @@ import com.neptune.cloud.drive.server.model.UserFile;
 import com.neptune.cloud.drive.server.service.IFileChunkService;
 import com.neptune.cloud.drive.server.service.IFileService;
 import com.neptune.cloud.drive.server.service.IUserFileService;
+import com.neptune.cloud.drive.server.vo.DirectoryTreeNodeVO;
 import com.neptune.cloud.drive.server.vo.UploadChunkVO;
 import com.neptune.cloud.drive.server.vo.UserFileVO;
 import com.neptune.cloud.drive.util.FileUtil;
 import com.neptune.cloud.drive.util.IdUtil;
+import org.apache.commons.collections.CollectionUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -36,8 +37,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -86,13 +85,13 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
      * 查询用户根目录
      */
     @Override
-    public UserFile selectUserRootDir(GetUserRootDirContext context) {
+    public UserFile selectUserRootDirectory(GetUserRootDirContext context) {
         // 0. 判断上下文是否为空
         if (Objects.isNull(context)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 1. 查询用户根目录
-        return selectUserRootDir(context.getUserId());
+        return selectUserRootDirectory(context.getUserId());
     }
 
     /**
@@ -305,6 +304,27 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
+     * 查询目录树
+     * <p>(1) 查询出所有目录到内存中, 然后拼接成目录树</p>
+     * <p>(2) 查询根目录的子目录, 递归查询子目录的子目录</p>
+     */
+    @Override
+    public List<DirectoryTreeNodeVO> listUserDirectoryTree(GetDirectoryTreeContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询出用户所有目录
+        List<UserFile> directories = selectUserDirectories(context.getUserId());
+        // 2. 判断是否存在目录
+        if (CollectionUtils.isEmpty(directories)) {
+            return Collections.emptyList();
+        }
+        // 3. 根据目录的映射关系封装成目录树
+        return assembleDirectoryTree(directories);
+    }
+
+    /**
      * 查询用户文件列表
      */
     @Override
@@ -407,7 +427,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 查询用户根目录
      */
-    private UserFile selectUserRootDir(long userId) {
+    private UserFile selectUserRootDirectory(long userId) {
         QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
                 .eq("user_id", userId)
                 .eq("parent_id", FileConstant.ROOT_PARENT_ID)
@@ -602,6 +622,39 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         fileService.previewFile(new DownloadFileContext()
                 .setFileId(fileId)
                 .setResponse(response));
+    }
+
+    /**
+     * 查询目录
+     */
+    private List<UserFile> selectUserDirectories(long userId) {
+        QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
+                .eq("user_id", userId)
+                .eq("folder_flag", DirectoryEnum.YES.getFlag())
+                .eq("del_flag", DeleteEnum.NO.getFlag());
+        return list(queryWrapper);
+    }
+
+    /**
+     * 封装目录树: 是否可以单纯使用 SQL 完成
+     */
+    private List<DirectoryTreeNodeVO> assembleDirectoryTree(List<UserFile> directories) {
+        // 1. 将目录转换为树的节点
+        List<DirectoryTreeNodeVO> directoryNodes = directories.stream()
+                .map(directory -> userFileConverter.UserFile2DirectoryTreeNodeVO(directory))
+                .collect(Collectors.toList());
+        // 2. 再将目录树的节点转换成哈希表
+        Map<Long, List<DirectoryTreeNodeVO>> directoryNodeMapping = directoryNodes.stream()
+                .collect(Collectors.groupingBy(DirectoryTreeNodeVO::getParentId));
+        // 3. 遍历所有目录树节点; 注: 这么做才能够保证节点集合中的对象是相同的
+        for (DirectoryTreeNodeVO directoryNode : directoryNodes) {
+            // 4. 获取当前节点和子节点的映射关系, 然后将其添加到子节点对应的子节点集合中
+            directoryNode.getChildren().addAll(directoryNodeMapping.get(directoryNode.getDirectoryId()));
+        }
+        // 4. 移除非根节点的节点; 注: 不能够先将非根节点移除
+        return directoryNodes.stream()
+                .filter(directoryNode -> directoryNode.getParentId() != FileConstant.ROOT_PARENT_ID)
+                .collect(Collectors.toList());
     }
 
 }

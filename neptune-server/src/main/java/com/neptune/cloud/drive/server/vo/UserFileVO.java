@@ -2,7 +2,6 @@ package com.neptune.cloud.drive.server.vo;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.neptune.cloud.drive.serializer.IdEncryptSerializer;
-import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;

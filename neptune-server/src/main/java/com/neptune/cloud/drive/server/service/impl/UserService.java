@@ -191,7 +191,7 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户不存在");
         }
         // 3. 查询用户关联的目录信息
-        UserFile userRootDir = selectUserRootDir(context.getUserId());
+        UserFile userRootDir = selectUserRootDirectory(context.getUserId());
         // 4. 判断是否查询成功
         if (Objects.isNull(userRootDir)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户根目录不存在");
@@ -441,8 +441,8 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     /**
      * 查询用户根目录
      */
-    private UserFile selectUserRootDir(long userId) {
-        return userFileService.selectUserRootDir(
+    private UserFile selectUserRootDirectory(long userId) {
+        return userFileService.selectUserRootDirectory(
                 new GetUserRootDirContext(userId));
     }
 
