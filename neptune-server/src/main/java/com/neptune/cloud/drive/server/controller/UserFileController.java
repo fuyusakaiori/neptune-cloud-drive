@@ -5,16 +5,16 @@ import com.neptune.cloud.drive.response.Response;
 import com.neptune.cloud.drive.response.ResponseCode;
 import com.neptune.cloud.drive.server.common.constant.FileConstant;
 import com.neptune.cloud.drive.server.context.file.*;
+import com.neptune.cloud.drive.server.converter.FileConverter;
 import com.neptune.cloud.drive.server.converter.UserFileConverter;
-import com.neptune.cloud.drive.server.request.file.CreateUserDirectoryRequest;
-import com.neptune.cloud.drive.server.request.file.DeleteUserFileRequest;
-import com.neptune.cloud.drive.server.request.file.RenameUserFileRequest;
-import com.neptune.cloud.drive.server.request.file.SecondUploadUserFileRequest;
+import com.neptune.cloud.drive.server.request.file.*;
 import com.neptune.cloud.drive.server.service.IUserFileService;
 import com.neptune.cloud.drive.server.threadlocal.UserThreadLocal;
+import com.neptune.cloud.drive.server.vo.UploadChunkVO;
 import com.neptune.cloud.drive.server.vo.UserFileVO;
 import com.neptune.cloud.drive.util.IdUtil;
 import io.swagger.annotations.ApiOperation;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -37,6 +37,9 @@ public class UserFileController {
 
     @Autowired
     private UserFileConverter userFileConverter;
+
+    @Autowired
+    private FileConverter fileConverter;
 
 
     /**
@@ -146,7 +149,7 @@ public class UserFileController {
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
     @PostMapping("/file/second-upload")
-    public Response<Void> secondUploadFile(@Validated @RequestBody SecondUploadUserFileRequest request) {
+    public Response<Void> secondUploadUserFile(@Validated @RequestBody SecondUploadUserFileRequest request) {
         log.info("UserFileController secondUploadFile: 开始秒传用户文件, request = {}", request);
         // 1. 请求转换为中间类
         SecondUploadUserFileContext context = userFileConverter.secondUploadUserFileRequest2SecondUploadUserFileContext(request);
@@ -160,15 +163,125 @@ public class UserFileController {
         // 4. 设置到上下文中
         context.setUserId(userId);
         // 5. 调用秒传文件的方法
-        boolean isSecondUpload = userFileService.secondUploadUserFile(context);
-        // 6. 判断是否秒传成功
-        if (isSecondUpload) {
-            log.error("UserFileController secondUploadFile: 秒传的文件不存在, 秒传失败, request = {}", request);
-            return Response.fail(ResponseCode.ERROR.getCode(), "秒传失败");
-        }
+        userFileService.secondUploadUserFile(context);
         log.info("UserFileController secondUploadFile: 秒传用户文件结束, request = {}", request);
         return Response.success();
     }
+
+    /**
+     * 上传文件
+     */
+    @ApiOperation(
+            value = "上传文件",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @PostMapping("/file/upload")
+    public Response<Void> uploadUserFile(@Validated @RequestBody UploadUserFileRequest request) {
+        log.info("UserFileController uploadUserFile: 开始上传用户文件, request = {}", request);
+        // 1. 请求转换为上下文
+        UploadUserFileContext context = userFileConverter.uploadUserFileRequest2UploadUserFileContext(request);
+        // 2. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 3. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController uploadUserFile: 用户未登录, 不允许上传文件, request = {}", request);
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 4. 设置到上下文中
+        context.setUserId(userId);
+        // 5. 调用上传文件的方法
+        userFileService.uploadUserFile(context);
+        log.info("UserFileController uploadUserFile: 上传用户文件结束, request = {}", request);
+        return Response.success();
+    }
+
+    /**
+     * 分片上传文件
+     */
+    @ApiOperation(
+            value = "上传文件",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @PostMapping("/file/chunk-upload")
+    public Response<Boolean> uploadUserFileChunk(@Validated @RequestBody UploadUserFileChunkRequest request) {
+        log.info("UserFileController uploadUserFileChunk: 开始分片上传用户文件, request = {}", request);
+        // 1. 请求转换为上下文
+        UploadUserFileChunkContext context = userFileConverter.uploadUserFileChunkRequest2UploadUserFileChunkContext(request);
+        // 2. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 3. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController uploadUserFileChunk: 用户未登录, 不允许上传文件分片, request = {}", request);
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 4. 设置到上下文中
+        context.setUserId(userId);
+        // 5. 调用分片上传文件的方法
+        boolean merge = userFileService.uploadUserFileChunk(context);
+        // 6. 返回是否可以合并的标识符
+        log.info("UserFileController uploadUserFileChunk: 分片上传用户文件结束, request = {}, merge = {}", request, merge);
+        return Response.success(merge);
+    }
+
+    /**
+     * 合并已经上传的文件分片
+     */
+    @ApiOperation(
+            value = "合并已经上传的文件分片",
+            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @GetMapping("/file/chunk-merge")
+    public Response<Void> mergeUploadedUserFileChunk(@Validated @RequestBody MergeUserFileChunkRequest request) {
+        log.info("UserFileController mergeUploadedUserFileChunk: 开始合并文件分片, request = {}", request);
+        // 1. 请求转换为上下文
+        MergeUserFileChunkContext context = userFileConverter.mergeUserFileChunkRequest2MergeUserFileChunkContext(request);
+        // 2. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 3. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController mergeUploadedUserFileChunk: 用户未登录, 不允许合并分片, request = {}", request);
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 4. 设置到上下文中
+        context.setUserId(userId);
+        // 5. 调用合并文件分片的方法
+        userFileService.mergeUploadedUserFileChunk(context);
+        log.info("UserFileController mergeUploadedUserFileChunk: 合并文件分片结束, request = {}", request);
+        return Response.success();
+    }
+
+    /**
+     * 获取已经上传的文件分片
+     */
+    @ApiOperation(
+            value = "上传文件",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @GetMapping("/file/chunk-upload")
+    public Response<List<UploadChunkVO>> listUploadedUserFileChunk(@Validated GetUserFileChunkRequest request) {
+        log.info("UserFileController listUploadedUserFileChunk: 开始查询文件分片, request = {}", request);
+        // 1. 请求转换为上下文
+        GetUserFileChunkContext context = userFileConverter.getUserFileChunkReqest2GetUserFileChunkContext(request);
+        // 2. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 3. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController listUploadedUserFileChunk: 用户未登录, 不允许查询分片, request = {}", request);
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 4. 设置到上下文中
+        context.setUserId(userId);
+        // 5. 查询文件分片
+        List<UploadChunkVO> chunks = userFileService.listUploadedUserFileChunk(context);
+        log.info("UserFileController listUploadedUserFileChunk: 查询文件分片结束, request = {}", request);
+        return Response.success(chunks);
+    }
+
+
 
     /**
      * 查询目录的文件列表

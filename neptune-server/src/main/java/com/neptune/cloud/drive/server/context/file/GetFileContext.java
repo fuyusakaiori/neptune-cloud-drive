@@ -9,7 +9,7 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class GetRealFileContext {
+public class GetFileContext {
 
     /**
      * 用户 ID

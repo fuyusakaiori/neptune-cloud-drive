@@ -5,7 +5,7 @@ package com.neptune.cloud.drive.constant;
  */
 public interface BasicConstant {
 
-    String CLOUD_DRIVE = "cloud-drive";
+    String CLOUD_DRIVE = "cloud_drive";
 
     String BASE_COMPONENT_SCAN_PATH = "com.neptune.cloud.drive";
 

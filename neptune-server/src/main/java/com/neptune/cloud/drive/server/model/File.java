@@ -5,11 +5,13 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * 物理文件信息表
  */
 @Data
+@Accessors(chain = true)
 @TableName(value ="cloud_drive_file")
 public class File {
     /**

@@ -18,9 +18,12 @@ import com.neptune.cloud.drive.server.context.user.GetUserRootDirContext;
 import com.neptune.cloud.drive.server.converter.UserFileConverter;
 import com.neptune.cloud.drive.server.mapper.UserFileMapper;
 import com.neptune.cloud.drive.server.model.File;
+import com.neptune.cloud.drive.server.model.FileChunk;
 import com.neptune.cloud.drive.server.model.UserFile;
+import com.neptune.cloud.drive.server.service.IFileChunkService;
 import com.neptune.cloud.drive.server.service.IFileService;
 import com.neptune.cloud.drive.server.service.IUserFileService;
+import com.neptune.cloud.drive.server.vo.UploadChunkVO;
 import com.neptune.cloud.drive.server.vo.UserFileVO;
 import com.neptune.cloud.drive.util.FileUtil;
 import com.neptune.cloud.drive.util.IdUtil;
@@ -29,22 +32,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> implements IUserFileService, ApplicationContextAware {
 
-    @Autowired
-    private IFileService fileService;
 
     @Autowired
     private UserFileConverter userFileConverter;
 
+    @Autowired
+    private IFileService fileService;
+
+    @Autowired
+    private IFileChunkService fileChunkService;
 
     @Autowired
     ApplicationContext applicationContext;
@@ -123,7 +127,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
      * 秒传用户文件
      */
     @Override
-    public boolean secondUploadUserFile(SecondUploadUserFileContext context) {
+    public void secondUploadUserFile(SecondUploadUserFileContext context) {
         // 0. 判断上下文是否为空
         if (Objects.isNull(context)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
@@ -132,9 +136,9 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         File file = selectUserFileIdentifier(context.getUserId(), context.getIdentifier());
         // 2. 判断是否查询到真实的文件
         if (Objects.isNull(file)) {
-            return false;
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "秒传失败");
         }
-        // 2. 如果存在对应的文件, 那么就链接到用户文件中
+        // 3. 如果存在对应的文件, 那么就链接到用户文件中
         long userFileId = createUserFile(
                 context.getUserId(),
                 context.getParentId(),
@@ -144,8 +148,106 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 file.getFileSizeDesc(),
                 FileType.getFileTypeCode(FileUtil.getFileSuffix(context.getFilename())),
                 DirectoryEnum.NO);
-        // 3. 判断是否链接成功
-        return userFileId > 0;
+        // 4. 判断是否链接成功
+        if (userFileId <= 0) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "秒传失败");
+        }
+    }
+
+    /**
+     * 上传用户文件
+     */
+    @Override
+    public void uploadUserFile(UploadUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 调用文件接口上传文件
+        uploadFile(context.getUserId(), context.getFileName(),
+                context.getFileSize(), context.getIdentifier(), context.getFile());
+        // 2. 查询上传的文件
+        File file = selectUserFileIdentifier(context.getUserId(), context.getIdentifier());
+        // 3. 判断是否上传成功
+        if (Objects.isNull(file)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "上传文件失败");
+        }
+        // 4. 用户文件链接到真实文件
+        long userFileId = createUserFile(context.getUserId(), context.getParentId(), file.getFileId(), context.getFileName(), file.getFileSizeDesc(),
+                FileType.getFileTypeCode(FileUtil.getFileSuffix(context.getFileName())), DirectoryEnum.NO);
+        if (userFileId <= 0) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件链接到用户失败");
+        }
+    }
+
+    /**
+     * 分片上传用户文件
+     */
+    @Override
+    public boolean uploadUserFileChunk(UploadUserFileChunkContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 调用文件接口上传文件分片
+        return uploadFileChunk(
+                context.getUserId(),
+                context.getIdentifier(),
+                context.getFileName(),
+                context.getChunkSeq(),
+                context.getChunkCount(),
+                context.getChunkSize(),
+                context.getChunk());
+    }
+
+    /**
+     * 查询文件的分片
+     */
+    @Override
+    public List<UploadChunkVO> listUploadedUserFileChunk(GetUserFileChunkContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询文件的分片
+        List<FileChunk> chunks = listFileChunk(context.getUserId(), context.getIdentifier());
+        // 2. 转换为查询结果
+        return chunks.stream()
+                .map(chunk -> new UploadChunkVO().setChunkId(chunk.getChunkId()))
+                .collect(Collectors.toList());
+
+    }
+
+    /**
+     * 合并文件分片
+     */
+    @Override
+    public void mergeUploadedUserFileChunk(MergeUserFileChunkContext context) {
+        // 1. 调用文件接口合并文件
+        mergeFileChunk(
+                context.getUserId(),
+                context.getIdentifier(),
+                context.getFileName(),
+                context.getFileSize());
+        // 2. 根据文件唯一标识符查询真实的文件
+        File file = selectUserFileIdentifier(context.getUserId(), context.getIdentifier());
+        // 3. 判断是否查询到真实的文件
+        if (Objects.isNull(file)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "合并文件分片失败");
+        }
+        // 4. 链接文件到对应的用户
+        long userFileId = createUserFile(
+                context.getUserId(),
+                context.getParentId(),
+                file.getFileId(),
+                // 注: 用户文件名可能和真实文件名不同, 不要使用真实文件名
+                context.getFileName(),
+                file.getFileSizeDesc(),
+                FileType.getFileTypeCode(FileUtil.getFileSuffix(context.getFileName())),
+                DirectoryEnum.NO);
+        if (userFileId <= 0) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "合并文件分片失败");
+        }
     }
 
     /**
@@ -169,9 +271,9 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 创建文件/目录
      */
-    private long createUserFile(long userId, long parentId, long realId, String filename, String description, int fileType, DirectoryEnum isFolder) {
+    private long createUserFile(long userId, long parentId, long realId, String filename, String description, int fileType, DirectoryEnum isDirectory) {
         // 1. 封装文件实体
-        UserFile file = assembleUserFile(userId, parentId, realId, filename, description, fileType, isFolder);
+        UserFile file = assembleUserFile(userId, parentId, realId, filename, description, fileType, isDirectory);
         // 2. 判断文件实体是否为空
         if (Objects.isNull(file)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
@@ -368,7 +470,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     private File selectUserFileIdentifier(long userId, String identifier) {
         // 1. 根据唯一标识符查询真实文件
         // TODO 暂时不清楚为什么会查询到多个文件
-        List<File> files = fileService.listRealFiles(new GetRealFileContext()
+        List<File> files = fileService.listFiles(new GetFileContext()
                 .setUserId(userId).setIdentifier(identifier));
         // 2. 判断文件集合是否为空
         if (CollectionUtil.isEmpty(files)) {
@@ -377,6 +479,57 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         // 3. 仅使用第一个文件
         return files.get(BasicConstant.ZERO_INT);
     }
+
+    /**
+     * 上传文件
+     */
+    private void uploadFile(long userId, String fileName, long fileSize, String identifier, MultipartFile file) {
+        fileService.uploadFile(new UploadFileContext()
+                .setUserId(userId)
+                .setFileName(fileName)
+                .setFileSize(fileSize)
+                .setIdentifier(identifier)
+                .setFile(file));
+    }
+
+    /**
+     * 分片上传文件
+     */
+    private boolean uploadFileChunk(long userId, String identifier, String fileName, long chunkSeq, long chunkCount, long chunkSize, MultipartFile chunk) {
+        return fileChunkService.uploadFileChunk(
+                new UploadFileChunkContext()
+                        .setUserId(userId)
+                        .setIdentifier(identifier)
+                        .setFileName(fileName)
+                        .setChunkSeq(chunkSeq)
+                        .setChunkCount(chunkCount)
+                        .setChunkSize(chunkSize)
+                        .setChunk(chunk));
+    }
+
+    /**
+     * 查询文件分片
+     */
+    private List<FileChunk> listFileChunk(long userId, String identifier) {
+        QueryWrapper<FileChunk> queryWrapper = new QueryWrapper<FileChunk>()
+                .eq("identifier", identifier)
+                .eq("create_user", userId)
+                // expiration_time > current time
+                .gt("expiration_time", new Date());
+        return fileChunkService.list(queryWrapper);
+    }
+
+    /**
+     * 合并文件分片
+     */
+    private void mergeFileChunk(long userId, String identifier, String fileName, long fileSize) {
+        fileService.mergeFileChunk(new MergeFileChunkContext()
+                .setUserId(userId)
+                .setIdentifier(identifier)
+                .setFileName(fileName)
+                .setFileSize(fileSize));
+    }
+
 }
 
 

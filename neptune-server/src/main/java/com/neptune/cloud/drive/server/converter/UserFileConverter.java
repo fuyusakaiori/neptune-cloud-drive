@@ -1,14 +1,8 @@
 package com.neptune.cloud.drive.server.converter;
 
-import com.neptune.cloud.drive.server.context.file.CreateUserDirectoryContext;
-import com.neptune.cloud.drive.server.context.file.DeleteUserFileContext;
-import com.neptune.cloud.drive.server.context.file.RenameUserFileContext;
-import com.neptune.cloud.drive.server.context.file.SecondUploadUserFileContext;
+import com.neptune.cloud.drive.server.context.file.*;
 import com.neptune.cloud.drive.server.model.UserFile;
-import com.neptune.cloud.drive.server.request.file.CreateUserDirectoryRequest;
-import com.neptune.cloud.drive.server.request.file.DeleteUserFileRequest;
-import com.neptune.cloud.drive.server.request.file.RenameUserFileRequest;
-import com.neptune.cloud.drive.server.request.file.SecondUploadUserFileRequest;
+import com.neptune.cloud.drive.server.request.file.*;
 import com.neptune.cloud.drive.server.vo.UserFileVO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -40,9 +34,32 @@ public interface UserFileConverter {
     SecondUploadUserFileContext secondUploadUserFileRequest2SecondUploadUserFileContext(SecondUploadUserFileRequest request);
 
     /**
+     * UploadFileRequest => UploadFileContext
+     */
+    @Mapping(target = "parentId", expression = "com.neptune.cloud.drive.util.IdUtil.decrypt(request.getParentId())")
+    UploadUserFileContext uploadUserFileRequest2UploadUserFileContext(UploadUserFileRequest request);
+
+    /**
+     * UploadUserFileChunkRequest => UploadUserFileChunkContext
+     */
+    @Mapping(target = "parentId", expression = "com.neptune.cloud.drive.util.IdUtil.decrypt(request.getParentId())")
+    UploadUserFileChunkContext uploadUserFileChunkRequest2UploadUserFileChunkContext(UploadUserFileChunkRequest request);
+
+    /**
+     * GetUserFileChunkRequest => GetUserFileChunkContext
+     */
+    GetUserFileChunkContext getUserFileChunkReqest2GetUserFileChunkContext(GetUserFileChunkRequest request);
+
+    /**
+     * MergeUserFileChunkRequest => MergeUserFileChunkContext
+     */
+    @Mapping(target = "parentId", expression = "com.neptune.cloud.drive.util.IdUtil.decrypt(request.getParentId())")
+    MergeUserFileChunkContext mergeUserFileChunkRequest2MergeUserFileChunkContext(MergeUserFileChunkRequest request);
+
+
+    /**
      * UserFile => UserFileVO
      */
     UserFileVO userFile2UserFileVO(UserFile userFile);
-
 
 }

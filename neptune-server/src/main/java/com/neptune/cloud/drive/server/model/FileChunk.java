@@ -6,18 +6,20 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * 文件分片信息表
  */
-@TableName(value ="cloud_drive_file_chunk")
 @Data
+@Accessors(chain = true)
+@TableName(value ="cloud_drive_file_chunk")
 public class FileChunk {
     /**
      * 主键
      */
     @TableId(value = "id", type = IdType.AUTO)
-    private Long chunkId;
+    private long chunkId;
 
     /**
      * 文件唯一标识
@@ -35,7 +37,7 @@ public class FileChunk {
      * 分片编号
      */
     @TableField(value = "chunk_number")
-    private Integer chunkNumber;
+    private long chunkNumber;
 
     /**
      * 过期时间
@@ -47,7 +49,7 @@ public class FileChunk {
      * 创建人
      */
     @TableField(value = "create_user")
-    private Long createUser;
+    private long createUser;
 
     /**
      * 创建时间

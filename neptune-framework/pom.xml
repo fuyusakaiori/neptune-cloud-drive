@@ -18,6 +18,7 @@
         <module>neptune-orm</module>
         <module>neptune-cache</module>
         <module>neptune-schedule</module>
+        <module>neptune-storage-engine</module>
     </modules>
 
     <properties>
