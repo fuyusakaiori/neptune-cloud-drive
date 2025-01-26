@@ -57,6 +57,16 @@ public interface UserFileConverter {
     @Mapping(target = "parentId", expression = "com.neptune.cloud.drive.util.IdUtil.decrypt(request.getParentId())")
     MergeUserFileChunkContext mergeUserFileChunkRequest2MergeUserFileChunkContext(MergeUserFileChunkRequest request);
 
+    /**
+     * TransferUserFileRequest => TransferUserFileContext
+     */
+    TransferUserFileContext transferUserFileRequest2TransferUserFileContext(TransferUserFileRequest request);
+
+    /**
+     * CopyUserFileRequest => CopyUserFileContext
+     */
+    CopyUserFileContext copyUserFileRequest2CopyUserFileContext(CopyUserFileRequest request);
+
 
     /**
      * UserFile => UserFileVO
@@ -70,4 +80,5 @@ public interface UserFileConverter {
     @Mapping(target = "directoryName", source = "userFile.filename")
     @Mapping(target = "children", expression = "java(com.google.common.collect.Lists.newArrayList())")
     DirectoryTreeNodeVO UserFile2DirectoryTreeNodeVO(UserFile userFile);
+
 }

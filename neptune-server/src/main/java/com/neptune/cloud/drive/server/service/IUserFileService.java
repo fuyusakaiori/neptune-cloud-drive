@@ -37,4 +37,8 @@ public interface IUserFileService extends IService<UserFile> {
     void previewUserFile(PreviewUserFileContext context);
 
     List<DirectoryTreeNodeVO> listUserDirectoryTree(GetDirectoryTreeContext context);
+
+    void transferUserFile(TransferUserFileContext context);
+
+    void copyUserFile(CopyUserFileContext context);
 }

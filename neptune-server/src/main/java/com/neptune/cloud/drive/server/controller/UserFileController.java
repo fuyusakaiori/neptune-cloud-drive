@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.constraints.NotBlank;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -324,8 +325,32 @@ public class UserFileController {
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
     @PostMapping("/file/transfer")
-    public Response<Void> transferUserFile() {
-
+    public Response<Void> transferUserFile(@Validated @RequestBody TransferUserFileRequest request) {
+        log.info("UserFileController transferUserFile: 开始移动用户文件, request = {}", request);
+        // 1. 请求转换为上下文
+        TransferUserFileContext context = userFileConverter.transferUserFileRequest2TransferUserFileContext(request);
+        // 2. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 3. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController transferUserFile: 用户未登录, 不允许移动用户文件, request = {}", request);
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 4. 解密源文件 ID 和目标文件 ID
+        long targetId = 0;
+        List<Long> sourceId = new ArrayList<>();
+        try {
+            targetId = IdUtil.decrypt(request.getTargetId());
+            sourceId = IdUtil.decryptList(request.getSourceIds());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        // 4. 设置上下文
+        context.setUserId(userId)
+                .setTargetId(targetId).setSourceIds(sourceId);
+        // 5. 调用移动用户文件的方法
+        userFileService.transferUserFile(context);
+        log.info("UserFileController transferUserFile: 移动用户文件结束, request = {}", request);
         return Response.success();
     }
 
@@ -338,8 +363,22 @@ public class UserFileController {
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
     @PostMapping("/file/copy")
-    public Response<Void> copyUserFile() {
-
+    public Response<Void> copyUserFile(@Validated @RequestBody CopyUserFileRequest request) {
+        log.info("UserFileController copyUserFile: 开始拷贝用户文件, request = {}", request);
+        // 1. 请求转换为上下文
+        CopyUserFileContext context = userFileConverter.copyUserFileRequest2CopyUserFileContext(request);
+        // 2. 获取用户 ID
+        Long userId = UserThreadLocal.get();
+        // 3. 判断用户 ID 是否为空
+        if (Objects.isNull(userId)) {
+            log.error("UserFileController copyUserFile: 用户未登录, 不允许拷贝用户文件, request = {}", request);
+            return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
+        }
+        // 4. 设置上下文
+        context.setUserId(userId);
+        // 5. 调用移动用户文件的方法
+        userFileService.copyUserFile(context);
+        log.info("UserFileController copyUserFile: 拷贝用户文件结束, request = {}", request);
         return Response.success();
     }
 

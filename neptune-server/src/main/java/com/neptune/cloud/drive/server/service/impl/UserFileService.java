@@ -3,6 +3,7 @@ package com.neptune.cloud.drive.server.service.impl;
 import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.neptune.cloud.drive.constant.BasicConstant;
 import com.neptune.cloud.drive.constant.StringConstant;
@@ -325,6 +326,36 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
+     * 移动文件: 只需要更新逻辑链接, 不需要真正移动文件
+     */
+    @Override
+    public void transferUserFile(TransferUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 校验是否可以移动文件
+        checkTransferUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds());
+        // 2. 将文件链接到目标目录
+        doTransferUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds());
+    }
+
+    /**
+     * 拷贝文件: 只需要建立逻辑链接, 不需要真正拷贝文件
+     */
+    @Override
+    public void copyUserFile(CopyUserFileContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 校验是否可以移动文件
+        checkCopyUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds());
+        // 2. 新建文件链接
+        doCopyUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds());
+    }
+
+    /**
      * 查询用户文件列表
      */
     @Override
@@ -401,12 +432,11 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             return filename;
         }
         // 5. 如果存在重复的文件, 就添加相应的标识符加以区分
-        return new StringBuilder(filenameWithoutSuffix)
-                .append(StringConstant.LEFT_PAREN)
-                .append(count)
-                .append(StringConstant.RIGHT_PAREN)
-                .append(filenameSuffix)
-                .toString();
+        return filenameWithoutSuffix +
+                StringConstant.LEFT_PAREN +
+                count +
+                StringConstant.RIGHT_PAREN +
+                filenameSuffix;
     }
 
     /**
@@ -657,6 +687,184 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 校验是否可以移动文件
+     * <p>(1) 目标文件必须是目录</p>
+     * <p>(2) 不能将父目录移动到子目录</p>
+     */
+    private void checkTransferUserFile(long userId, long targetId, List<Long> sourceIds) {
+        // 1. 查询目标文件是否为目录
+        UserFile userFile = getById(targetId);
+        // 2. 判断是否查询成功
+        if (Objects.isNull(userFile)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "目标目录不存在");
+        }
+        // 3. 判断是否为目录
+        if (DirectoryEnum.YES.getFlag() != userFile.getFolderFlag()) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "目标文件不是目录");
+        }
+        // 4. 查询所有需要移动的文件
+        List<UserFile> userFiles = listByIds(sourceIds);
+        // 5. 判断是否查询成功
+        if (CollectionUtil.isEmpty(userFiles)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "需要移动的文件不存在");
+        }
+        // TODO: 判断是否查询的是用户的文件
+        if (userFiles.stream().anyMatch(file -> file.getUserId() != userId)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "禁止移动其他用户的文件");
+        }
+        // 6. 过滤所有需要移动的目录
+        List<UserFile> moveDirectories = userFiles.stream()
+                .filter(file -> DirectoryEnum.YES.getFlag() == userFile.getFolderFlag())
+                .collect(Collectors.toList());
+        // 7. 判断是否需要移动目录: 如果不需要移动目录, 就直接返回
+        if (CollectionUtil.isEmpty(moveDirectories)) {
+            return;
+        }
+        // 8. 查询用户的所有目录
+        List<UserFile> allDirectories = selectUserDirectories(userId);
+        // 9. 判断是否查询成功
+        if (CollectionUtil.isEmpty(allDirectories)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "用户不存在任何目录信息");
+        }
+        // 10. 将用户的所有目录分组
+        Map<Long, List<UserFile>> parentMapping = allDirectories.stream()
+                .collect(Collectors.groupingBy(UserFile::getParentId));
+        // 11. 递归查询所有子目录
+        List<UserFile> forbiddenTargetDirectories = new ArrayList<>();
+        for (UserFile moveDirectory : moveDirectories) {
+            findChildDirectory(moveDirectory, parentMapping, forbiddenTargetDirectories);
+        }
+        // 12. 判断目标目录是否在子目录中
+        if (forbiddenTargetDirectories.stream()
+                .anyMatch(childrenDirectory -> childrenDirectory.getFileId() == targetId)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "不允许将目录移动到自己的子目录中");
+        }
+    }
+
+    /**
+     * 递归查询所有需要移动的目录的子目录
+     */
+    private void findChildDirectory(UserFile moveDirectory, Map<Long, List<UserFile>> parentMapping, List<UserFile> forbiddenTargetDirectories) {
+        // 1. 查询需要移动的目录的子目录
+        List<UserFile> childrenDirectories = parentMapping.get(moveDirectory.getFileId());
+        // 2. 判断是否为空
+        if (CollectionUtil.isEmpty(childrenDirectories)) {
+            return;
+        }
+        // 3. 如果不为空, 就添加到子目录集合中
+        forbiddenTargetDirectories.addAll(childrenDirectories);
+        // 4. 递归查询
+        for (UserFile childrenDirectory : childrenDirectories) {
+            findChildDirectory(childrenDirectory, parentMapping, forbiddenTargetDirectories);
+        }
+    }
+
+    /**
+     * 移动文件
+     */
+    private void doTransferUserFile(long userId, long targetId, List<Long> sourceIds) {
+        // 1. 查询所有需要移动的文件
+        List<UserFile> userFiles = listByIds(sourceIds);
+        // 2. 判断是否查询成功
+        if (CollectionUtil.isEmpty(userFiles)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "需要移动的文件不存在");
+        }
+        // 3. 判断是否移动的是用户的文件
+        if (userFiles.stream().anyMatch(file -> file.getUserId() != userId)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "禁止移动其他用户的文件");
+        }
+        // 4. 重新设置文件的目录 ID
+        for (UserFile userFile : userFiles) {
+            String newFileName = generateUniqueFilename(userId, targetId,
+                    userFile.getFilename(), DirectoryEnum.getDirectoryEnum(userFile.getFolderFlag()));
+            userFile.setParentId(targetId);
+            userFile.setFilename(newFileName);
+            userFile.setCreateTime(new Date());
+            userFile.setUpdateTime(new Date());
+        }
+        // 5. 更新移动的文件
+        if (!updateBatchById(userFiles)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "移动文件失败");
+        }
+    }
+
+    /**
+     * 校验是否可以拷贝文件
+     */
+    private void checkCopyUserFile(long userId, long targetId, List<Long> sourceIds) {
+        checkTransferUserFile(userId, targetId, sourceIds);
+    }
+
+    /**
+     * 复制文件
+     */
+    private void doCopyUserFile(long userId, long targetId, List<Long> sourceIds) {
+        // 1. 查询所有需要移动的文件
+        List<UserFile> userFiles = listByIds(sourceIds);
+        // 2. 判断是否查询成功
+        if (CollectionUtil.isEmpty(userFiles)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "需要移动的文件不存在");
+        }
+        // 3. 判断是否移动的是用户的文件
+        if (userFiles.stream().anyMatch(file -> file.getUserId() != userId)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "禁止移动其他用户的文件");
+        }
+        // 4. 复制文件以及目录下的所有文件的信息
+        List<UserFile> copyUserFiles = new ArrayList<>();
+        // TODO: 利用并发工具优化查询
+        for (UserFile userFile : userFiles) {
+            generateCopyUserFile(userId, targetId, userFile, copyUserFiles);
+        }
+        // 5. 更新移动的文件
+        if (!saveBatch(copyUserFiles)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "移动文件失败");
+        }
+    }
+
+    /**
+     * 递归复制文件
+     */
+    private void generateCopyUserFile(long userId, long targetId, UserFile userFile, List<UserFile> copyUserFiles) {
+        long fileId = userFile.getFileId();
+        // 1. 封装新的文件实体
+        UserFile newUserFile = assembleNewUserFile(userId, targetId, userFile);
+        // 2. 添加到集合中
+        copyUserFiles.add(newUserFile);
+        // 3. 判断该文件是否为目录
+        if (newUserFile.getFolderFlag() == DirectoryEnum.YES.getFlag()) {
+            // 4. 查询目录的所有子文件
+            List<UserFile> childUserFiles = selectChildUserFiles(userId, fileId);
+            // 5. 递归调用进行复制
+            for (UserFile childUserFile : childUserFiles) {
+                generateCopyUserFile(userId, targetId, childUserFile, copyUserFiles);
+            }
+        }
+    }
+
+    /**
+     * 复制文件实体
+     */
+    private UserFile assembleNewUserFile(long userId, long targetId, UserFile userFile) {
+        return userFile.setUserId(userId)
+                .setFileId(IdUtil.generate())
+                .setParentId(targetId)
+                .setFilename(generateUniqueFilename(userId, targetId,
+                        userFile.getFilename(), DirectoryEnum.getDirectoryEnum(userFile.getFolderFlag())))
+                .setCreateTime(new Date())
+                .setUpdateTime(new Date());
+    }
+
+    /**
+     * 查询目录的子文件
+     */
+    private List<UserFile> selectChildUserFiles(long userId, long fileId) {
+        QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
+                .eq("user_id", userId)
+                .eq("parent_id", fileId)
+                .eq("del_flag", DeleteEnum.NO.getFlag());
+        return list(queryWrapper);
+    }
 }
 
 
