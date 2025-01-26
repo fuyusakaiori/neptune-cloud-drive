@@ -154,7 +154,7 @@ public class IdUtil {
     public static long decrypt(String content) throws Exception {
         // 1. 判断是否为空
         if (StringUtils.isEmpty(content)) {
-            return BasicConstant.NEGATIVE_ONE_INT;
+            return BasicConstant.NEGATIVE_ONE;
         }
         // 2. base64 解码
         byte[] encryption = Base64.decode(content);
@@ -162,7 +162,7 @@ public class IdUtil {
         byte[] decryption = AES128Util.decrypt(encryption);
         // 4. 判断是否为空
         if (ArrayUtil.isEmpty(decryption)) {
-            return BasicConstant.NEGATIVE_ONE_INT;
+            return BasicConstant.NEGATIVE_ONE;
         }
         // 5. 初始化缓冲区
         ByteBuffer byteBuffer = ByteBuffer.wrap(decryption);

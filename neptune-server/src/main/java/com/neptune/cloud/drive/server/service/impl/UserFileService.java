@@ -3,7 +3,6 @@ package com.neptune.cloud.drive.server.service.impl;
 import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.neptune.cloud.drive.constant.BasicConstant;
 import com.neptune.cloud.drive.constant.StringConstant;
@@ -581,7 +580,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             return null;
         }
         // 3. 仅使用第一个文件
-        return files.get(BasicConstant.ZERO_INT);
+        return files.get(BasicConstant.ZERO);
     }
 
     /**

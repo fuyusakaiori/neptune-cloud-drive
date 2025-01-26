@@ -63,6 +63,7 @@ public class FastDFSStorageEngine extends AbstractStorageEngine {
      */
     @Override
     protected String doStoreFileChunk(StoreFileChunkContext context) throws IOException {
+        // TODO 可以采用和本地存储类似的做法, 依然上传分片
         throw new IOException("不支持文件分片上传");
     }
 
@@ -71,6 +72,7 @@ public class FastDFSStorageEngine extends AbstractStorageEngine {
      */
     @Override
     protected String doMergeFileChunk(MergeFileChunkContext context) throws IOException {
+        // TODO: 合并时需要将所有分片下载到本地进行合并, 然后重新上传, 会对本地存储造成压力
         throw new IOException("不支持合并文件分片");
     }
 

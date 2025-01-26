@@ -9,7 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>neptune-storage-engine-oss</artifactId>
+    <artifactId>neptune-storage-engine-s3</artifactId>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -22,6 +22,14 @@
             <groupId>com.neptune</groupId>
             <artifactId>neptune-storage-engine-core</artifactId>
             <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun.oss</groupId>
+            <artifactId>aliyun-sdk-oss</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
         </dependency>
     </dependencies>
 

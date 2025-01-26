@@ -14,9 +14,9 @@ import java.util.List;
 public class MergeFileChunkContext {
 
     /**
-     * 文件名称
+     * 用户 ID
      */
-    private String fileName;
+    private long userId;
 
     /**
      * 文件唯一标识符

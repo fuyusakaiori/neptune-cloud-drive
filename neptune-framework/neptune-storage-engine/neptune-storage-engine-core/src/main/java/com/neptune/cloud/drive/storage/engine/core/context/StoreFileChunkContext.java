@@ -14,6 +14,11 @@ import java.io.InputStream;
 public class StoreFileChunkContext {
 
     /**
+     * 用户 ID
+     */
+    private long userId;
+
+    /**
      * 文件唯一标识符
      */
     private String identifier;
@@ -32,6 +37,11 @@ public class StoreFileChunkContext {
      * 分片大小
      */
     private long chunkSize;
+
+    /**
+     * 文件分片数量
+     */
+    private long chunkCount;
 
     /**
      * 分片

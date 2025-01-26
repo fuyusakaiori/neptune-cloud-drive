@@ -89,6 +89,7 @@ public abstract class AbstractStorageEngine implements StorageEngine {
         Assert.notNull(context.getIdentifier(), "文件唯一标识符不可以为空");
         Assert.notNull(context.getChunkSeq(), "文件分片编号不可以为空");
         Assert.notNull(context.getChunkSize(), "文件大小不可以为空");
+        Assert.notNull(context.getChunkCount(), "文件分片数量不可以为空");
         Assert.notNull(context.getChunk(), "文件分片不可以为空");
     }
 
@@ -97,7 +98,7 @@ public abstract class AbstractStorageEngine implements StorageEngine {
      */
     private void checkMergeFileChunkContext(MergeFileChunkContext context) {
         Assert.notNull(context, "上下文不可以为空");
-        Assert.notNull(context.getFileName(), "文件名称不可以为空");
+        Assert.notNull(context.getUserId(), "用户 ID 不可以为空");
         Assert.notNull(context.getIdentifier(), "文件唯一标识符不可以为空");
         Assert.notEmpty(context.getChunkPaths(), "文件分片路径不可以为空");
     }

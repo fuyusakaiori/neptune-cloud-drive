@@ -44,10 +44,12 @@ public class FileChunkService extends ServiceImpl<FileChunkMapper, FileChunk> im
         }
         // 1. 调用存储引擎存储文件分片
         String chunkPath = storeFileChunk(
+                context.getUserId(),
                 context.getIdentifier(),
                 context.getFileName(),
                 context.getChunkSeq(),
                 context.getChunkSize(),
+                context.getChunkCount(),
                 context.getChunk());
         // 2. 判断是否上传文件分片成功
         if (StringUtils.isEmpty(chunkPath)) {
@@ -65,14 +67,16 @@ public class FileChunkService extends ServiceImpl<FileChunkMapper, FileChunk> im
     /**
      * 存储文件分片
      */
-    private String storeFileChunk(String identifier, String fileName, long chunkSeq, long chunkSize, MultipartFile chunk) {
+    private String storeFileChunk(long userId, String identifier, String fileName, long chunkSeq, long chunkSize, long chunkCount, MultipartFile chunk) {
         try {
             // 1. 封装存储文件分片的上下文信息
             StoreFileChunkContext context = new StoreFileChunkContext()
+                    .setUserId(userId)
                     .setIdentifier(identifier)
                     .setFileName(fileName)
                     .setChunkSeq(chunkSeq)
                     .setChunkSize(chunkSize)
+                    .setChunkCount(chunkCount)
                     .setChunk(chunk.getInputStream());
             // 2. 调用存储引擎存储文件分片
             return storageEngine.storeFileChunk(context);

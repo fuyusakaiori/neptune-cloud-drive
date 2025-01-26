@@ -1,20 +1,10 @@
 package com.neptune.cloud.drive.util;
 
-import cn.hutool.core.date.DateUtil;
 import com.neptune.cloud.drive.constant.BasicConstant;
 import com.neptune.cloud.drive.constant.StringConstant;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -26,7 +16,7 @@ public class FileUtil {
      * 获取文件的后缀
      */
     public static String getFileSuffix(String filename) {
-        if (StringUtils.isBlank(filename) || filename.lastIndexOf(StringConstant.POINT) == BasicConstant.NEGATIVE_ONE_INT) {
+        if (StringUtils.isBlank(filename) || filename.lastIndexOf(StringConstant.POINT) == BasicConstant.NEGATIVE_ONE) {
             return StringConstant.EMPTY;
         }
         return filename.substring(filename.lastIndexOf(StringConstant.POINT)).toLowerCase();
@@ -36,10 +26,10 @@ public class FileUtil {
      * 获取文件的类型
      */
     public static String getFileExtName(String filename) {
-        if (StringUtils.isBlank(filename) || filename.lastIndexOf(StringConstant.POINT) == BasicConstant.NEGATIVE_ONE_INT) {
+        if (StringUtils.isBlank(filename) || filename.lastIndexOf(StringConstant.POINT) == BasicConstant.NEGATIVE_ONE) {
             return StringConstant.EMPTY;
         }
-        return filename.substring(filename.lastIndexOf(StringConstant.POINT) + BasicConstant.ONE_INT).toLowerCase();
+        return filename.substring(filename.lastIndexOf(StringConstant.POINT) + BasicConstant.ONE).toLowerCase();
     }
 
     /**
@@ -60,8 +50,8 @@ public class FileUtil {
         // 1. 缓冲数组
         byte[] buffer = new byte[1024];
         // 2. 循环读取
-        while ((length = inputStream.read(buffer)) != BasicConstant.NEGATIVE_ONE_INT) {
-            outputStream.write(buffer, BasicConstant.ZERO_INT, length);
+        while ((length = inputStream.read(buffer)) != BasicConstant.NEGATIVE_ONE) {
+            outputStream.write(buffer, BasicConstant.ZERO, length);
         }
         // 3. 刷新输出流
         outputStream.flush();

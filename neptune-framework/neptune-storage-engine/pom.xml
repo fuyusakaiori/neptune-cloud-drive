@@ -13,7 +13,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>neptune-storage-engine-local</module>
-        <module>neptune-storage-engine-oss</module>
+        <module>neptune-storage-engine-s3</module>
         <module>neptune-storage-engine-fastdfs</module>
         <module>neptune-storage-engine-core</module>
     </modules>

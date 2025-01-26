@@ -99,7 +99,8 @@ public class FileService extends ServiceImpl<FileMapper, File> implements IFileS
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 1. 调用文件分片接口合并分片
-        String filePath = doMergeFileChunk(context.getUserId(), context.getIdentifier());
+        String filePath = doMergeFileChunk(
+                context.getUserId(), context.getIdentifier());
         // 2. 记录分片合并后的文件
         doUploadFile(
                 context.getUserId(),
@@ -237,6 +238,7 @@ public class FileService extends ServiceImpl<FileMapper, File> implements IFileS
         String filePath = StringConstant.EMPTY;
         try {
             filePath = storageEngine.mergeFileChunk(new com.neptune.cloud.drive.storage.engine.core.context.MergeFileChunkContext()
+                    .setUserId(userId)
                     .setIdentifier(identifier)
                     .setChunkPaths(chunkPaths));
         } catch (IOException exception) {

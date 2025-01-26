@@ -9,13 +9,11 @@ public interface BasicConstant {
 
     String BASE_COMPONENT_SCAN_PATH = "com.neptune.cloud.drive";
 
-    Long ZERO_LONG = 0L;
+    int ZERO = 0;
 
-    Integer ZERO_INT = 0;
+    int ONE = 1;
 
-    Integer ONE_INT = 1;
+    int NEGATIVE_ONE = -1;
 
-    Integer TWO_INT = 2;
-
-    Integer NEGATIVE_ONE_INT = -1;
+    int TWO = 2;
 }
