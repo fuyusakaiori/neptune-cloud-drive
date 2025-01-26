@@ -53,25 +53,6 @@ public class FileUtil {
     }
 
     /**
-     * <p>将文件中的内容写入到输出流中</p>
-     */
-    public static void file2OutputStream(FileInputStream fileInputStream, OutputStream outputStream, long length) throws IOException {
-        // 1. 获取写入文件的 channel
-        FileChannel inputChannel = fileInputStream.getChannel();
-        // 2. 获取输出流的 channel
-        WritableByteChannel outputChannel = Channels.newChannel(outputStream);
-        // 3. 从文件零拷贝到输出流
-        inputChannel.transferTo(BasicConstant.ZERO_LONG, length, outputChannel);
-        // 4. 刷新输出流
-        outputStream.flush();
-        // 5. 关闭文件流
-        fileInputStream.close();
-        outputStream.close();
-        inputChannel.close();
-        outputChannel.close();
-    }
-
-    /**
      * <p>将输入流写入到输出流中</p>
      */
     public static void inputStream2OutputStream(InputStream inputStream, OutputStream outputStream) throws IOException {
