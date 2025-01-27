@@ -10,7 +10,8 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
 
     List<UserFile> listUserFiles(@Param("userId") long userId,
                                  @Param("parentId") long parentId,
-                                 @Param("fileTypes") List<Integer> fileTypes);
+                                 @Param("fileTypes") List<Integer> fileTypes,
+                                 @Param("delete") int delete);
 }
 
 

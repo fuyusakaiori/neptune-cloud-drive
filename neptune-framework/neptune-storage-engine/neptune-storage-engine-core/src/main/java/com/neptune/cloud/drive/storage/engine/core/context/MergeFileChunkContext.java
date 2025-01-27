@@ -24,6 +24,11 @@ public class MergeFileChunkContext {
     private String identifier;
 
     /**
+     * 文件名称
+     */
+    private String fileName;
+
+    /**
      * 文件分片的路径
      */
     private List<String> chunkPaths;

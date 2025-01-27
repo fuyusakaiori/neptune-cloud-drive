@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.context.file;
+package com.neptune.cloud.drive.server.context.recycle;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,7 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class ListUserFileContext {
+public class RestoreRecycleFileContext {
 
     /**
      * 用户 ID
@@ -19,17 +19,8 @@ public class ListUserFileContext {
     private long userId;
 
     /**
-     * 目录 ID
+     * 文件 ID
      */
-    private long parentId;
+    private List<Long> fileIds;
 
-    /**
-     * 文件类型
-     */
-    private List<Integer> fileTypes;
-
-    /**
-     * 文件状态
-     */
-    private int delete;
 }

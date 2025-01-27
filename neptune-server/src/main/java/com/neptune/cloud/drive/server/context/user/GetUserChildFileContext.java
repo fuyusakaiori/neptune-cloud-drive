@@ -1,5 +1,6 @@
-package com.neptune.cloud.drive.server.context.file;
+package com.neptune.cloud.drive.server.context.user;
 
+import com.neptune.cloud.drive.server.model.UserFile;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,7 +12,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class ListUserFileContext {
+public class GetUserChildFileContext {
 
     /**
      * 用户 ID
@@ -19,17 +20,8 @@ public class ListUserFileContext {
     private long userId;
 
     /**
-     * 目录 ID
+     * 需要查询子文件的目录
      */
-    private long parentId;
+    private List<UserFile> files;
 
-    /**
-     * 文件类型
-     */
-    private List<Integer> fileTypes;
-
-    /**
-     * 文件状态
-     */
-    private int delete;
 }

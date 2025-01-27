@@ -2,6 +2,7 @@ package com.neptune.cloud.drive.server.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.neptune.cloud.drive.server.context.file.*;
+import com.neptune.cloud.drive.server.context.user.GetUserChildFileContext;
 import com.neptune.cloud.drive.server.context.user.GetUserRootDirContext;
 import com.neptune.cloud.drive.server.model.UserFile;
 import com.neptune.cloud.drive.server.vo.DirectoryTreeNodeVO;
@@ -41,4 +42,6 @@ public interface IUserFileService extends IService<UserFile> {
     void transferUserFile(TransferUserFileContext context);
 
     void copyUserFile(CopyUserFileContext context);
+
+    List<UserFile> selectUserChildFiles(GetUserChildFileContext context);
 }

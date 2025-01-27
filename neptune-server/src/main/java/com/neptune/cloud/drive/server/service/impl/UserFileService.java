@@ -14,6 +14,7 @@ import com.neptune.cloud.drive.server.common.enums.DeleteEnum;
 import com.neptune.cloud.drive.server.common.enums.DirectoryEnum;
 import com.neptune.cloud.drive.server.common.event.DeleteUserFileEvent;
 import com.neptune.cloud.drive.server.context.file.*;
+import com.neptune.cloud.drive.server.context.user.GetUserChildFileContext;
 import com.neptune.cloud.drive.server.context.user.GetUserRootDirContext;
 import com.neptune.cloud.drive.server.converter.UserFileConverter;
 import com.neptune.cloud.drive.server.mapper.UserFileMapper;
@@ -355,6 +356,24 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
+     * 查询目录的子文件
+     */
+    @Override
+    public List<UserFile> selectUserChildFiles(GetUserChildFileContext context) {
+        List<UserFile> files = new ArrayList<>();
+        // 1. 查询所有需要删除的文件: 因为被删除的文件中可能存在目录, 所以需要递归查询找到所有的文件
+        for (UserFile file : context.getFiles()) {
+            // 不管文件还是目录, 最后都需要删除
+            files.add(file);
+            // 2. 判断是否为目录
+            if (file.getFolderFlag() == DirectoryEnum.YES.getFlag()) {
+                selectChildFiles(file, files);
+            }
+        }
+        return files;
+    }
+
+    /**
      * 查询用户文件列表
      */
     @Override
@@ -364,7 +383,8 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 1. 查询用户目录的文件列表
-        List<UserFile> userFiles = baseMapper.listUserFiles(context.getUserId(), context.getParentId(), context.getFileTypes());
+        List<UserFile> userFiles = baseMapper.listUserFiles(
+                context.getUserId(), context.getParentId(), context.getFileTypes(), context.getDelete());
         // 2. 转换为返回结果
         return userFiles.stream()
                 .map(userFile -> userFileConverter.userFile2UserFileVO(userFile))
@@ -863,6 +883,27 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 .eq("parent_id", fileId)
                 .eq("del_flag", DeleteEnum.NO.getFlag());
         return list(queryWrapper);
+    }
+
+    /**
+     * 递归查询目录的文件
+     */
+    private void selectChildFiles(UserFile file, List<UserFile> files) {
+        // 1. 根据目录 ID 查询目录下的所有文件: 因为之前删除目录时, 没有递归删除文件, 所以被删除目录下的文件都是未删除状态, 可以不用携带删除状态
+        QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
+                .eq("parent_id", file.getFileId());
+        List<UserFile> childFiles = list(queryWrapper);
+        // 2. 判断是否查询成功
+        if (CollectionUtils.isEmpty(childFiles)) {
+            return;
+        }
+        // 3. 遍历目录下所有子文件
+        for (UserFile childFile : childFiles) {
+            files.add(childFile);
+            if (childFile.getFolderFlag() == DirectoryEnum.YES.getFlag()) {
+                selectChildFiles(childFile, files);
+            }
+        }
     }
 }
 

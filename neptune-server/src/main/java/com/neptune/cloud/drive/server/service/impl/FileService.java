@@ -100,7 +100,7 @@ public class FileService extends ServiceImpl<FileMapper, File> implements IFileS
         }
         // 1. 调用文件分片接口合并分片
         String filePath = doMergeFileChunk(
-                context.getUserId(), context.getIdentifier());
+                context.getUserId(), context.getIdentifier(), context.getFileName());
         // 2. 记录分片合并后的文件
         doUploadFile(
                 context.getUserId(),
@@ -218,7 +218,7 @@ public class FileService extends ServiceImpl<FileMapper, File> implements IFileS
     /**
      * 合并文件分片
      */
-    private String doMergeFileChunk(long userId, String identifier) {
+    private String doMergeFileChunk(long userId, String identifier, String fileName) {
         // 1. 封装查询文件分片的条件
         QueryWrapper<FileChunk> queryWrapper = new QueryWrapper<FileChunk>()
                 .eq("create_user", userId)
@@ -240,6 +240,7 @@ public class FileService extends ServiceImpl<FileMapper, File> implements IFileS
             filePath = storageEngine.mergeFileChunk(new com.neptune.cloud.drive.storage.engine.core.context.MergeFileChunkContext()
                     .setUserId(userId)
                     .setIdentifier(identifier)
+                    .setFileName(fileName)
                     .setChunkPaths(chunkPaths));
         } catch (IOException exception) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "合并文件分片失败");

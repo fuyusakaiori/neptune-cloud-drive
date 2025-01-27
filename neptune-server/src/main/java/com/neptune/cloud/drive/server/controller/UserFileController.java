@@ -4,6 +4,7 @@ import com.neptune.cloud.drive.constant.StringConstant;
 import com.neptune.cloud.drive.response.Response;
 import com.neptune.cloud.drive.response.ResponseCode;
 import com.neptune.cloud.drive.server.common.constant.FileConstant;
+import com.neptune.cloud.drive.server.common.enums.DeleteEnum;
 import com.neptune.cloud.drive.server.context.file.*;
 import com.neptune.cloud.drive.server.converter.FileConverter;
 import com.neptune.cloud.drive.server.converter.UserFileConverter;
@@ -487,7 +488,10 @@ public class UserFileController {
         }
         // 3. 封装到上下文中
         ListUserFileContext context = new ListUserFileContext()
-                .setParentId(realParentId).setFileTypes(fileTypes).setUserId(userId);
+                .setParentId(realParentId)
+                .setFileTypes(fileTypes)
+                .setUserId(userId)
+                .setDelete(DeleteEnum.NO.getFlag());
         // 4. 调用查询目录文件列表的方法
         List<UserFileVO> userFiles = userFileService.listUserFiles(context);
         log.info("UserFileController listUserFiles: 查询用户目录下的文件列表结束, parentId = {}, fileType = {}, size = {}", parentId, fileType, userFiles.size());
