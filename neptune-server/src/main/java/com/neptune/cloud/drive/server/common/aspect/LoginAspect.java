@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.aspect;
+package com.neptune.cloud.drive.server.common.aspect;
 
 import com.neptune.cloud.drive.cache.core.constant.CacheConstant;
 import com.neptune.cloud.drive.response.Response;
@@ -94,32 +94,32 @@ public class LoginAspect {
         String loginToken = request.getHeader(HttpConstant.HTTP_AUTHORIZATION);
         // 2. 判断请求头中是否携带 token
         if (StringUtils.isEmpty(loginToken)) {
-            // 3. 尝试再从携带的请求参数中获取 token
+            // 4. 尝试再从携带的请求参数中获取 token
             loginToken = request.getParameter(HttpConstant.HTTP_AUTHORIZATION);
-            // 4. 再次判断是否获取到 token
+            // 5. 再次判断是否获取到 token
             if (StringUtils.isEmpty(loginToken)) {
                 return false;
             }
         }
-        // 3. 解析 token
+        // 6. 解析 token
         Object userId = JwtUtil.analyzeToken(loginToken, UserConstant.USER_LOGIN_ID);
-        // 4. 判断解析是否成功
+        // 7. 判断解析是否成功
         if (Objects.isNull(userId)) {
             return false;
         }
-        // 5. 获取缓存
+        // 8. 获取缓存
         Cache cache = cacheManager.getCache(CacheConstant.CLOUD_DRIVE_CACHE_NAME);
-        // 6. 判断缓存是否为空
+        // 9. 判断缓存是否为空
         if (Objects.isNull(cache)) {
             return false;
         }
-        // 7. 获取缓存中的 token: 如果没有使用缓存, 就需要根据用户 ID 在数据库中查询
+        // 10. 获取缓存中的 token: 如果没有使用缓存, 就需要根据用户 ID 在数据库中查询
         String accessToken = cache.get(CacheConstant.USER_LOGIN_PREFIX + userId, String.class);
-        // 8. 比较 token 是否相同
+        // 11. 比较 token 是否相同
         if (!StringUtils.equals(loginToken, accessToken)) {
             return false;
         }
-        // 9. 如果 token 相同, 那么保存用户 ID 在上下文中
+        // 12. 如果 token 相同, 那么保存用户 ID 在上下文中
         UserThreadLocal.set(Long.parseLong(String.valueOf(userId)));
 
         return true;

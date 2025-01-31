@@ -1,17 +1,17 @@
-package com.neptune.cloud.drive.server.context.file;
+package com.neptune.cloud.drive.server.context.share;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
-import java.util.List;
+import javax.servlet.http.HttpServletResponse;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class CopyUserFileContext {
+public class DownloadShareFileContext {
 
     /**
      * 用户 ID
@@ -19,18 +19,18 @@ public class CopyUserFileContext {
     private long userId;
 
     /**
-     * 移动的文件 ID
+     * 分享链接 ID
      */
-    private List<Long> sourceIds;
+    private long shareId;
 
     /**
-     * 目标 ID
+     * 分享文件 ID
      */
-    private long targetId;
+    private long shareFileId;
 
     /**
-     * 是否为分享
+     * 响应结果
      */
-    private boolean share;
+    private HttpServletResponse response;
 
 }

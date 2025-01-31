@@ -44,4 +44,6 @@ public interface IUserFileService extends IService<UserFile> {
     void copyUserFile(CopyUserFileContext context);
 
     List<UserFile> selectUserChildFiles(GetUserChildFileContext context);
+
+    List<UserFile> selectUserChildFiles(List<Long> fileIds);
 }

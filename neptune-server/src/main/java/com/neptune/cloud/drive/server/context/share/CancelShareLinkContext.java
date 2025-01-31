@@ -1,4 +1,4 @@
-package com.neptune.cloud.drive.server.context.file;
+package com.neptune.cloud.drive.server.context.share;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,7 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class CopyUserFileContext {
+public class CancelShareLinkContext {
 
     /**
      * 用户 ID
@@ -19,18 +19,8 @@ public class CopyUserFileContext {
     private long userId;
 
     /**
-     * 移动的文件 ID
+     * 取消的分享 ID 集合
      */
-    private List<Long> sourceIds;
-
-    /**
-     * 目标 ID
-     */
-    private long targetId;
-
-    /**
-     * 是否为分享
-     */
-    private boolean share;
+    private List<Long> shareIds;
 
 }

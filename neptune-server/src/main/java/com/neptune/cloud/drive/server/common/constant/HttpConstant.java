@@ -16,5 +16,7 @@ public class HttpConstant {
 
     public final static String IOS_8859_1 = "ISO-8859-1";
 
+    public final static String HTTP_SHARE_TOKEN = "Share-Token";
+
 
 }

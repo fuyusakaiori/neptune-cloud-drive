@@ -27,4 +27,10 @@ public class DownloadUserFileContext {
      * 请求的响应结果
      */
     private HttpServletResponse response;
+
+
+    /**
+     * 是否下载分享文件
+     */
+    private boolean share;
 }

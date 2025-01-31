@@ -15,4 +15,9 @@ public class CacheConstant {
      */
     public final static String USER_LOGIN_PREFIX = "user_login:";
 
+    /**
+     * 分享链接校验码前缀
+     */
+    public final static String SHARE_TOKEN_PREFIX = "share_token:";
+
 }

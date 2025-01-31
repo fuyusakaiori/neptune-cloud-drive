@@ -1,0 +1,16 @@
+{
+  "properties": [
+    {
+      "name": "com.neptune.cloud.drive.server.chunk-file-expiration-days",
+      "type": "java.lang.Integer",
+      "description": "分片文件的过期天数",
+      "defaultValue": 1
+    },
+    {
+      "name": "com.neptune.cloud.drive.server.share-link-prefix",
+      "type": "java.lang.String",
+      "description": "分享链接的前缀",
+      "defaultValue": "http://127.0.0.1:port/share/"
+    }
+  ]
+}

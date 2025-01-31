@@ -273,9 +273,9 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         if (Objects.isNull(userFile)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "下载的文件不存在");
         }
-        // 3. 判断文件是否为目录: 如果需要支持, 那么就查询出所有文件, 然后并发下载
-        if (DirectoryEnum.YES.getFlag() == userFile.getFolderFlag()) {
-            throw new BusinessException(ResponseCode.ERROR.getCode(), "不支持直接下载目录");
+        // 3. 校验是否可以下载文件
+        if (!context.isShare()) {
+            checkDownloadUserFile(context.getUserId(), userFile);
         }
         // 4. 调用文件接口下载文件
         doDownloadUserFile(userFile.getRealFileId(), context.getResponse());
@@ -335,7 +335,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 1. 校验是否可以移动文件
-        checkTransferUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds());
+        checkTransferUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds(), false);
         // 2. 将文件链接到目标目录
         doTransferUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds());
     }
@@ -350,7 +350,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 1. 校验是否可以移动文件
-        checkCopyUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds());
+        checkCopyUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds(), context.isShare());
         // 2. 新建文件链接
         doCopyUserFile(context.getUserId(), context.getTargetId(), context.getSourceIds());
     }
@@ -371,6 +371,19 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             }
         }
         return files;
+    }
+
+    @Override
+    public List<UserFile> selectUserChildFiles(List<Long> fileIds) {
+        // 1. 根据 ID 查询文件
+        List<UserFile> files = listByIds(fileIds);
+        // 2. 判断是否查询成功
+        if (CollectionUtils.isEmpty(files)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "用户文件不存在");
+        }
+        // 3. 递归查询文件
+        return selectUserChildFiles
+                (new GetUserChildFileContext().setFiles(files));
     }
 
     /**
@@ -654,6 +667,20 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
+     * 判断是否可以下载文件
+     */
+    private void checkDownloadUserFile(long userId, UserFile userFile) {
+        // 1. 判断文件是否为目录: 如果需要支持, 那么就查询出所有文件, 然后并发下载
+        if (DirectoryEnum.YES.getFlag() == userFile.getFolderFlag()) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "不支持直接下载目录");
+        }
+        // 2. 判断用户是否拥有下载权限
+        if (userId != userFile.getUserId()) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "用户无权下载文件");
+        }
+    }
+
+    /**
      * 下载文件
      */
     private void doDownloadUserFile(long fileId, HttpServletResponse response) {
@@ -711,7 +738,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
      * <p>(1) 目标文件必须是目录</p>
      * <p>(2) 不能将父目录移动到子目录</p>
      */
-    private void checkTransferUserFile(long userId, long targetId, List<Long> sourceIds) {
+    private void checkTransferUserFile(long userId, long targetId, List<Long> sourceIds, boolean share) {
         // 1. 查询目标文件是否为目录
         UserFile userFile = getById(targetId);
         // 2. 判断是否查询成功
@@ -728,33 +755,35 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         if (CollectionUtil.isEmpty(userFiles)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "需要移动的文件不存在");
         }
-        // TODO: 判断是否查询的是用户的文件
-        if (userFiles.stream().anyMatch(file -> file.getUserId() != userId)) {
-            throw new BusinessException(ResponseCode.ERROR.getCode(), "禁止移动其他用户的文件");
+        // 6. 判断用户是否拥有移动文件的权限
+        if (!share) {
+            if (userFiles.stream().anyMatch(file -> file.getUserId() != userId)) {
+                throw new BusinessException(ResponseCode.ERROR.getCode(), "禁止移动其他用户的文件");
+            }
         }
-        // 6. 过滤所有需要移动的目录
+        // 7. 过滤所有需要移动的目录
         List<UserFile> moveDirectories = userFiles.stream()
                 .filter(file -> DirectoryEnum.YES.getFlag() == userFile.getFolderFlag())
                 .collect(Collectors.toList());
-        // 7. 判断是否需要移动目录: 如果不需要移动目录, 就直接返回
+        // 8. 判断是否需要移动目录: 如果不需要移动目录, 就直接返回
         if (CollectionUtil.isEmpty(moveDirectories)) {
             return;
         }
-        // 8. 查询用户的所有目录
+        // 9. 查询用户的所有目录
         List<UserFile> allDirectories = selectUserDirectories(userId);
-        // 9. 判断是否查询成功
+        // 10. 判断是否查询成功
         if (CollectionUtil.isEmpty(allDirectories)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户不存在任何目录信息");
         }
-        // 10. 将用户的所有目录分组
+        // 11. 将用户的所有目录分组
         Map<Long, List<UserFile>> parentMapping = allDirectories.stream()
                 .collect(Collectors.groupingBy(UserFile::getParentId));
-        // 11. 递归查询所有子目录
+        // 12. 递归查询所有子目录
         List<UserFile> forbiddenTargetDirectories = new ArrayList<>();
         for (UserFile moveDirectory : moveDirectories) {
             findChildDirectory(moveDirectory, parentMapping, forbiddenTargetDirectories);
         }
-        // 12. 判断目标目录是否在子目录中
+        // 13. 判断目标目录是否在子目录中
         if (forbiddenTargetDirectories.stream()
                 .anyMatch(childrenDirectory -> childrenDirectory.getFileId() == targetId)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "不允许将目录移动到自己的子目录中");
@@ -811,8 +840,8 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 校验是否可以拷贝文件
      */
-    private void checkCopyUserFile(long userId, long targetId, List<Long> sourceIds) {
-        checkTransferUserFile(userId, targetId, sourceIds);
+    private void checkCopyUserFile(long userId, long targetId, List<Long> sourceIds, boolean share) {
+        checkTransferUserFile(userId, targetId, sourceIds, share);
     }
 
     /**
