@@ -20,10 +20,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Objects;
 
-@Api(value = "用户模块")
 @Slf4j
 @RestController
-@RequestMapping(value = "/user")
 public class UserController {
 
     @Autowired
@@ -40,20 +38,20 @@ public class UserController {
             consumes = MediaType.APPLICATION_JSON_UTF8_VALUE,
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
-    @PostMapping(value = "/register")
+    @PostMapping(value = "/user/register")
     @LoginIgnore
-    public Response<Long> register(@Validated @RequestBody RegisterUserRequest request) {
-        log.info("UserController register: 开始注册用户信息, request = {}", request);
+    public Response<Long> registerUser(@Validated @RequestBody RegisterUserRequest request) {
+        log.info("UserController v: 开始注册用户信息, request = {}", request);
         // 1. 请求转换为中间类
         RegisterUserContext context = userConverter.registerUserRequest2RegisterUserContext(request);
         // 2. 调用用户注册逻辑的方法
         long id = userService.register(context);
         // 3. 判断返回结果是否存在问题
         if (id < 0) {
-            log.error("UserController register: 注册用户信息失败, request = {}", request);
+            log.error("UserController registerUser: 注册用户信息失败, request = {}", request);
             return Response.fail(ResponseCode.ERROR.getCode(), "用户注册失败");
         }
-        log.info("UserController register: 注册用户信息结束, request = {}, id = {}", request, id);
+        log.info("UserController registerUser: 注册用户信息结束, request = {}, id = {}", request, id);
         return Response.success(id);
     }
 
@@ -65,20 +63,20 @@ public class UserController {
             consumes = MediaType.APPLICATION_JSON_UTF8_VALUE,
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
-    @PostMapping("/login")
+    @PostMapping("/user/login")
     @LoginIgnore
-    public Response<String> login(@Validated @RequestBody LoginUserRequest request) {
-        log.info("UserController login: 开始执行用户登录, request = {}", request);
+    public Response<String> loginUser(@Validated @RequestBody LoginUserRequest request) {
+        log.info("UserController loginUser: 开始执行用户登录, request = {}", request);
         // 1. 请求转换为上下文
         LoginUserContext context = userConverter.loginUserRequest2LoginUserContext(request);
         // 2. 调用用户登录逻辑的方法
         String accessToken = userService.login(context);
         // 3. 判断是否登录成功
         if (StringUtils.isEmpty(accessToken)) {
-            log.error("UserController login: 用户登录失败, request = {}", request);
+            log.error("UserController loginUser: 用户登录失败, request = {}", request);
             return Response.fail(ResponseCode.ERROR.getCode(), "用户登录失败");
         }
-        log.info("UserController login: 结束执行用户登录, request = {}, accessToken = {}", request, accessToken);
+        log.info("UserController loginUser: 结束执行用户登录, request = {}, accessToken = {}", request, accessToken);
         return Response.success(accessToken);
     }
 
@@ -91,13 +89,13 @@ public class UserController {
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
     @PostMapping("/logout")
-    public Response<Void> logout() {
-        log.info("UserController logout: 开始执行用户登出...");
+    public Response<Void> logoutUser() {
+        log.info("UserController logoutUser: 开始执行用户登出...");
         // 1. 从线程本地变量获取用户 ID
         Long userId = UserThreadLocal.get();
         // 2. 判断是否获取到用户 ID
         if (Objects.isNull(userId)) {
-            log.error("UserController logout: 用户未登录, 不允许直接登出");
+            log.error("UserController logoutUser: 用户未登录, 不允许直接登出");
             return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
         }
         // 3. 封装登出的上下文请求
@@ -105,7 +103,7 @@ public class UserController {
         // 4. 调用用户登出逻辑的方法
         userService.logout(context);
         // 5. 登出结束
-        log.info("UserController logout: 结束执行用户登出");
+        log.info("UserController logoutUser: 结束执行用户登出");
         return Response.success();
     }
 
@@ -218,8 +216,8 @@ public class UserController {
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE
     )
     @GetMapping("/info")
-    public Response<UserInfoVO> info() {
-        log.info("UserController info: 开始查询用户的基本信息");
+    public Response<UserInfoVO> infoUser() {
+        log.info("UserController infoUser: 开始查询用户的基本信息");
         // 1. 获取用户 ID
         Long userId = UserThreadLocal.get();
         // 2. 判断用户 ID 是否为空
@@ -227,9 +225,9 @@ public class UserController {
             return Response.fail(ResponseCode.NEED_LOGIN.getCode(), ResponseCode.NEED_LOGIN.getMessage());
         }
         // 3. 调用查询用户信息的方法
-        UserInfoVO userInfo = userService.info(new GetUserInfoContext(userId));
+        UserInfoVO userInfo = userService.infoUser(new GetUserInfoContext(userId));
         // 4. 返回用户信息
-        log.info("UserController info: 查询用户的基本信息结束, user = {}", userInfo);
+        log.info("UserController infoUser: 查询用户的基本信息结束, user = {}", userInfo);
         return Response.success(userInfo);
     }
 

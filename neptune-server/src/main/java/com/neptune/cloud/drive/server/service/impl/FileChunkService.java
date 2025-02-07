@@ -34,7 +34,8 @@ public class FileChunkService extends ServiceImpl<FileChunkMapper, FileChunk> im
     private StorageEngine storageEngine;
 
     /**
-     * 分片上传文件: 后续会替换为分布式锁
+     * <p>分片上传文件: 需要添加分布式锁 - 用户 ID + 文件唯一标识符</p>
+     * <p>加锁原因: 有可能多个分片同时判断是否需要合并, 并且都判断为需要合并, 最终导致重复触发合并</p>
      */
     @Override
     public synchronized boolean uploadFileChunk(UploadFileChunkContext context) {

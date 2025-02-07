@@ -128,7 +128,7 @@ public class RecycleFileService implements IRecycleFileService, ApplicationConte
         }
         // 4. 检查还原的目标位置是否已经存在相同名字的文件或者目录
         for (UserFile file : files) {
-            // TODO: 如果还原的文件或者目录数量很多, 那么这样判重是非常慢的
+            // TODO: 如果还原的文件或者目录数量很多, 那么这样判重是非常慢的, 可以使用 CountDownLatch
             QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
                     .eq("userId", file.getUserId())
                     .eq("parent_id", file.getParentId())

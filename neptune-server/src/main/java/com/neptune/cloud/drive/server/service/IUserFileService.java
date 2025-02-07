@@ -15,7 +15,7 @@ public interface IUserFileService extends IService<UserFile> {
 
     long createUserDirectory(CreateUserDirectoryContext context);
 
-    UserFile selectUserRootDirectory(GetUserRootDirContext context);
+    UserFile getUserRootDirectory(GetUserRootDirContext context);
 
     void deleteUserFile(DeleteUserFileContext context);
 

@@ -21,5 +21,5 @@ public interface IUserService extends IService<User> {
 
     void changePassword(ChangePasswordContext context);
 
-    UserInfoVO info(GetUserInfoContext context);
+    UserInfoVO infoUser(GetUserInfoContext context);
 }

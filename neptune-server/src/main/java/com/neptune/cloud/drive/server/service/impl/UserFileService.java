@@ -35,10 +35,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -63,8 +65,9 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 创建用户目录
+     * <p>创建用户目录</p>
      */
+    @Transactional(rollbackFor = BusinessException.class)
     @Override
     public long createUserDirectory(CreateUserDirectoryContext context) {
         // 0. 判断上下文是否为空
@@ -86,18 +89,21 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
      * 查询用户根目录
      */
     @Override
-    public UserFile selectUserRootDirectory(GetUserRootDirContext context) {
+    public UserFile getUserRootDirectory(GetUserRootDirContext context) {
         // 0. 判断上下文是否为空
         if (Objects.isNull(context)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 1. 查询用户根目录
-        return selectUserRootDirectory(context.getUserId());
+        return getUserRootDirectory(context.getUserId());
     }
 
     /**
-     * 重命名用户文件
+     * <p>重命名用户文件或者目录: 需要添加分布式锁 - 文件所属目录的 ID作为 key</p>
+     * <p>1. 判断重命名的名字是否在目录中已经存在</p>
+     * <p>2. 重命名文件或者目录</p>
      */
+    @Transactional(rollbackFor = BusinessException.class)
     @Override
     public void renameUserFile(RenameUserFileContext context) {
         // 0. 判断上下文是否为空
@@ -111,8 +117,14 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 删除用户文件
+     * <p>删除用户文件: 需要添加分布式锁 - 删除文件所属目录的 ID 作为 key</p>
+     * <p>1. 判断删除的文件是否有效</p>
+     * <p>2. 软删除文件并放入回收站</p>
+     * <p>3. 发布删除文件的事件, 更新分享文件的状态 => 可以采用 rocketmq 替代</p>
+     * <p>注: 删除目录时, 仅将目录标记为删除, 不会递归将目录下的文件都标记为删除</p>
+     * <p>注: 在真正删除文件时, 会直接递归将被标记为删除的目录下的文件全部删除</p>
      */
+    @Transactional(rollbackFor = BusinessException.class)
     @Override
     public void deleteUserFile(DeleteUserFileContext context) {
         // 0. 判断上下文是否为空
@@ -123,13 +135,16 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         checkDeleteUserFile(context.getUserId(), context.getFileIdList());
         // 2. 逻辑删除文件
         doDeleteUserFile(context.getUserId(), context.getFileIdList());
-        // 3. 发布删除文件的事件, 交给存储引擎删除
+        // 3. 发布删除文件的事件, 更新分享链接的状态: 如果这个文件此前被分享过, 那么就需要刷新为不存在
         afterDeleteUserFile(context.getFileIdList());
     }
 
     /**
-     * 秒传用户文件
+     * <p>秒传用户文件: 需要添加分布式锁或者唯一索引 - 上传文件所属目录的 ID 作为 key</p>
+     * <p>1. 根据文件唯一标识符查询文件是否存在</p>
+     * <p>2. 发现文件存在后就可以直接存储记录</p>
      */
+    @Transactional(rollbackFor = BusinessException.class)
     @Override
     public void secondUploadUserFile(SecondUploadUserFileContext context) {
         // 0. 判断上下文是否为空
@@ -137,7 +152,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 1. 根据文件唯一标识符查询真实的文件
-        File file = selectUserFileIdentifier(context.getUserId(), context.getIdentifier());
+        File file = getUserFileIdentifier(context.getUserId(), context.getIdentifier());
         // 2. 判断是否查询到真实的文件
         if (Objects.isNull(file)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "秒传失败");
@@ -147,7 +162,6 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 context.getUserId(),
                 context.getParentId(),
                 file.getFileId(),
-                // 注: 用户文件名可能和真实文件名不同, 不要使用真实文件名
                 context.getFilename(),
                 file.getFileSizeDesc(),
                 FileType.getFileTypeCode(FileUtil.getFileSuffix(context.getFilename())),
@@ -159,8 +173,16 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 上传用户文件
+     * <p>上传用户文件: 需要添加分布式锁或者唯一索引 - 上传文件目标目录的 ID 作为 key </p>
+     * <p>1. 调用存储引擎接口上传文件</p>
+     * <p>2. 存储文件信息</p>
+     * <p>3. 存储文件软链接信息</p>
+     * <p>注: 如果重复上传, 那么软连接层面是没有问题的, 会自动处理名字相同的情况</p>
+     * <p>注: 如果重复上传, 那么底层的文件信息会存在多条重复的记录, 但是查询时只会获取其中一条</p>
+     * <p>注: 如果重复上传, 那么文件存储引擎是不会有重复的, 会默认覆盖</p>
+     * <p>注: 这种写法相当于是简化重复上传的解决方式</p>
      */
+    @Transactional(rollbackFor = BusinessException.class)
     @Override
     public void uploadUserFile(UploadUserFileContext context) {
         // 0. 判断上下文是否为空
@@ -171,7 +193,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         uploadFile(context.getUserId(), context.getFileName(),
                 context.getFileSize(), context.getIdentifier(), context.getFile());
         // 2. 查询上传的文件
-        File file = selectUserFileIdentifier(context.getUserId(), context.getIdentifier());
+        File file = getUserFileIdentifier(context.getUserId(), context.getIdentifier());
         // 3. 判断是否上传成功
         if (Objects.isNull(file)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "上传文件失败");
@@ -185,8 +207,11 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 分片上传用户文件
+     * <p>分片上传用户文件: 不需要存储文件软链接信息, 不需要对目录上锁</p>
+     * <p>1. 上传文件分片</p>
+     * <p>2. 存储文件分片信息</p>
      */
+    @Transactional(rollbackFor = BusinessException.class)
     @Override
     public boolean uploadUserFileChunk(UploadUserFileChunkContext context) {
         // 0. 判断上下文是否为空
@@ -205,26 +230,13 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 查询文件的分片
+     * <p>合并文件分片: 需要添加分布式锁 - 文件所属的目录 ID 作为 key</p>
+     * <p>1. 调用存储引擎合并文件分片</p>
+     * <p>2. 移除存储的文件分片信息</p>
+     * <p>3. 存储文件信息</p>
+     * <p>4. 存储文件软连接信息</p>
      */
-    @Override
-    public List<UploadChunkVO> listUploadedUserFileChunk(GetUserFileChunkContext context) {
-        // 0. 判断上下文是否为空
-        if (Objects.isNull(context)) {
-            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
-        }
-        // 1. 查询文件的分片
-        List<FileChunk> chunks = listFileChunk(context.getUserId(), context.getIdentifier());
-        // 2. 转换为查询结果
-        return chunks.stream()
-                .map(chunk -> new UploadChunkVO().setChunkId(chunk.getChunkId()))
-                .collect(Collectors.toList());
-
-    }
-
-    /**
-     * 合并文件分片
-     */
+    @Transactional(rollbackFor = BusinessException.class)
     @Override
     public void mergeUploadedUserFileChunk(MergeUserFileChunkContext context) {
         // 0. 判断上下文是否为空
@@ -238,7 +250,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
                 context.getFileName(),
                 context.getFileSize());
         // 2. 根据文件唯一标识符查询真实的文件
-        File file = selectUserFileIdentifier(context.getUserId(), context.getIdentifier());
+        File file = getUserFileIdentifier(context.getUserId(), context.getIdentifier());
         // 3. 判断是否查询到真实的文件
         if (Objects.isNull(file)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "合并文件分片失败");
@@ -259,7 +271,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 下载用户文件
+     * <p>下载用户文件: 不需要添加分布式锁</p>
      */
     @Override
     public void downloadUserFile(DownloadUserFileContext context) {
@@ -282,7 +294,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 预览文件
+     * 预览文件: 不需要添加分布式锁
      */
     @Override
     public void previewUserFile(PreviewUserFileContext context) {
@@ -305,9 +317,30 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 查询目录树
-     * <p>(1) 查询出所有目录到内存中, 然后拼接成目录树</p>
-     * <p>(2) 查询根目录的子目录, 递归查询子目录的子目录</p>
+     * <p>查询文件的分片: 不需要添加分布式锁</p>
+     */
+    @Override
+    public List<UploadChunkVO> listUploadedUserFileChunk(GetUserFileChunkContext context) {
+        // 0. 判断上下文是否为空
+        if (Objects.isNull(context)) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
+        }
+        // 1. 查询文件的分片
+        List<FileChunk> chunks = listFileChunk(context.getUserId(), context.getIdentifier());
+        // 2. 转换为查询结果
+        return chunks.stream()
+                .map(chunk -> new UploadChunkVO().setChunkId(chunk.getChunkId()))
+                .collect(Collectors.toList());
+
+    }
+
+    /**
+     * <p>查询目录树</p>
+     * <p>1. 查询出所有目录到内存中, 然后拼接成目录树</p>
+     * <p>2. 查询根目录的子目录, 递归查询子目录的子目录</p>
+     * <p>注: 采用邻接表形式存储的目录树, 查询只能采用递归</p>
+     * <p>注: MySQL 8.0 才提供了递归的查询方法, 以前的版本都是没有办法支持的</p>
+     * <p>注: 最好的办法只能是加载到内存中实现递归查询, 但是存在目录数量过多的情况</p>
      */
     @Override
     public List<DirectoryTreeNodeVO> listUserDirectoryTree(GetDirectoryTreeContext context) {
@@ -316,7 +349,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
         }
         // 1. 查询出用户所有目录
-        List<UserFile> directories = selectUserDirectories(context.getUserId());
+        List<UserFile> directories = getUserDirectories(context.getUserId());
         // 2. 判断是否存在目录
         if (CollectionUtils.isEmpty(directories)) {
             return Collections.emptyList();
@@ -326,7 +359,12 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 移动文件: 只需要更新逻辑链接, 不需要真正移动文件
+     * <p>移动文件: 需要添加分布式锁 - 需要同时获取源目录 ID 和目标目录 ID 两把锁</p>
+     * <p>1. 判断是否可以移动文件: </p>
+     * <p>1.1 要移动的位置必须是目录</p>
+     * <p>1.2 不能将目录移动到自己的子目录中</p>
+     * <p>2. 移动文件</p>
+     * <p>注: 移动文件只会调整文件软连接, 不需要真正移动文件</p>
      */
     @Override
     public void transferUserFile(TransferUserFileContext context) {
@@ -341,7 +379,8 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 拷贝文件: 只需要建立逻辑链接, 不需要真正拷贝文件
+     * <p>拷贝文件: 需要添加分布式锁 - 需要同时获取源目录 ID 和目标目录 ID 两把锁</p>
+     * <p>注: 拷贝文件只需要建立新的文件软连接, 不需要真正拷贝文件</p>
      */
     @Override
     public void copyUserFile(CopyUserFileContext context) {
@@ -356,7 +395,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 查询目录的子文件
+     * <p>递归查询目录的子文件</p>
      */
     @Override
     public List<UserFile> selectUserChildFiles(GetUserChildFileContext context) {
@@ -373,6 +412,9 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         return files;
     }
 
+    /**
+     * <p>递归查询目录的子文件: 重载</p>
+     */
     @Override
     public List<UserFile> selectUserChildFiles(List<Long> fileIds) {
         // 1. 根据 ID 查询文件
@@ -387,7 +429,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     }
 
     /**
-     * 查询用户文件列表
+     * <p>查询用户文件列表</p>
      */
     @Override
     public List<UserFileVO> listUserFiles(ListUserFileContext context) {
@@ -489,7 +531,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 查询用户根目录
      */
-    private UserFile selectUserRootDirectory(long userId) {
+    private UserFile getUserRootDirectory(long userId) {
         QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
                 .eq("user_id", userId)
                 .eq("parent_id", FileConstant.ROOT_PARENT_ID)
@@ -603,7 +645,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 根据文件唯一标识符查询真实文件
      */
-    private File selectUserFileIdentifier(long userId, String identifier) {
+    private File getUserFileIdentifier(long userId, String identifier) {
         // 1. 根据唯一标识符查询真实文件
         // TODO 暂时不清楚为什么会查询到多个文件
         List<File> files = fileService.listFiles(new GetFileContext()
@@ -703,7 +745,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     /**
      * 查询目录
      */
-    private List<UserFile> selectUserDirectories(long userId) {
+    private List<UserFile> getUserDirectories(long userId) {
         QueryWrapper<UserFile> queryWrapper = new QueryWrapper<UserFile>()
                 .eq("user_id", userId)
                 .eq("folder_flag", DirectoryEnum.YES.getFlag())
@@ -717,10 +759,13 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
     private List<DirectoryTreeNodeVO> assembleDirectoryTree(List<UserFile> directories) {
         // 1. 将目录转换为树的节点
         List<DirectoryTreeNodeVO> directoryNodes = directories.stream()
+                // 如果用户目录数量非常多, 那么可以试试并行流式运算加速
+                .parallel()
                 .map(directory -> userFileConverter.UserFile2DirectoryTreeNodeVO(directory))
                 .collect(Collectors.toList());
         // 2. 再将目录树的节点转换成哈希表
         Map<Long, List<DirectoryTreeNodeVO>> directoryNodeMapping = directoryNodes.stream()
+                .parallel()
                 .collect(Collectors.groupingBy(DirectoryTreeNodeVO::getParentId));
         // 3. 遍历所有目录树节点; 注: 这么做才能够保证节点集合中的对象是相同的
         for (DirectoryTreeNodeVO directoryNode : directoryNodes) {
@@ -729,14 +774,15 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
         }
         // 4. 移除非根节点的节点; 注: 不能够先将非根节点移除
         return directoryNodes.stream()
+                .parallel()
                 .filter(directoryNode -> directoryNode.getParentId() != FileConstant.ROOT_PARENT_ID)
                 .collect(Collectors.toList());
     }
 
     /**
-     * 校验是否可以移动文件
-     * <p>(1) 目标文件必须是目录</p>
-     * <p>(2) 不能将父目录移动到子目录</p>
+     * <p>校验是否可以移动文件</p>
+     * <p>1. 目标文件必须是目录</p>
+     * <p>2. 不能将父目录移动到子目录</p>
      */
     private void checkTransferUserFile(long userId, long targetId, List<Long> sourceIds, boolean share) {
         // 1. 查询目标文件是否为目录
@@ -770,7 +816,7 @@ public class UserFileService extends ServiceImpl<UserFileMapper, UserFile> imple
             return;
         }
         // 9. 查询用户的所有目录
-        List<UserFile> allDirectories = selectUserDirectories(userId);
+        List<UserFile> allDirectories = getUserDirectories(userId);
         // 10. 判断是否查询成功
         if (CollectionUtil.isEmpty(allDirectories)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户不存在任何目录信息");

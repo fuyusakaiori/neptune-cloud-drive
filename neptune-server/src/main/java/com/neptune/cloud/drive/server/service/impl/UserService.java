@@ -27,6 +27,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
@@ -47,8 +48,11 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
 
 
     /**
-     * 用户注册
+     * <p>用户注册: 需要添加分布式锁或者唯一索引避免重复注册相同账号 - 用户账号作为 key</p>
+     * <p>1. 注册用户信息</p>
+     * <p>2. 创建用户的根目录</p>
      */
+    @Transactional(rollbackFor = BusinessException.class)
     @Override
     public long register(RegisterUserContext context) {
         // 0. 判断上下文是否为空
@@ -66,7 +70,10 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     }
 
     /**
-     * 用户登录
+     * <p>用户登录: 需要添加分布式锁避免重复生成 token 导致缓存变化 - 用户账号作为 key</p>
+     * <p>1. 验证登录信息</p>
+     * <p>2. jwt 生成登录使用的 token</p>
+     * <p>3. 缓存登录使用的 token, 解决主动登出的问题</p>
      */
     @Override
     public String login(LoginUserContext context) {
@@ -86,7 +93,9 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     }
 
     /**
-     * 用户登出
+     * <p>用户登出: 需要添加分布式锁避免重复操作缓存带来的问题 - 用户账号作为 key</p>
+     * <p>1. 查询缓存</p>
+     * <p>2. 清空缓存, 最后就无法登录</p>
      */
     @Override
     public void logout(LogoutUserContext context) {
@@ -105,7 +114,9 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     }
 
     /**
-     * 忘记密码: 校验用户
+     * <p>忘记密码: 校验用户: 不需要添加分布式锁</p>
+     * <p>1. 查询用户信息</p>
+     * <p>2. 获取密保问题</p>
      */
     @Override
     public String checkUsername(CheckUsernameContext context) {
@@ -124,7 +135,9 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     }
 
     /**
-     * 忘记密码: 校验密保答案
+     * <p>忘记密码: 校验密保答案: 不需要添加分布式锁 </p>
+     * <p>1. 判断用户密保问题是否正确</p>
+     * <p>2. 生成临时登录使用的 token</p>
      */
     @Override
     public String checkAnswer(CheckAnswerContext context) {
@@ -144,7 +157,9 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     }
 
     /**
-     * 忘记密码: 重设密码
+     * <p>忘记密码: 重设密码: 最好添加对应的分布式锁 - 用户账号作为 key</p>
+     * <p>1. 判断用户登录临时 token 是否合法</p>
+     * <p>2. 重设旧密码</p>
      */
     @Override
     public void resetPassword(ResetPasswordContext context) {
@@ -159,7 +174,10 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     }
 
     /**
-     * 更新用户密码
+     * <p>更新用户密码: 最好添加对应的分布式锁 - 用户账号作为 key</p>
+     * <p>1. 判断用户旧密码是否正确</p>
+     * <p>2. 更新用户的密码</p>
+     * <p>3. 注销用户账号</p>
      */
     @Override
     public void changePassword(ChangePasswordContext context) {
@@ -176,10 +194,10 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     }
 
     /**
-     * 查询用户信息
+     * <p>查询用户信息: 不需要添加分布式锁</p>
      */
     @Override
-    public UserInfoVO info(GetUserInfoContext context) {
+    public UserInfoVO infoUser(GetUserInfoContext context) {
         // 0. 判断上下文是否为空
         if (Objects.isNull(context)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), ResponseCode.ERROR.getMessage());
@@ -191,7 +209,7 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户不存在");
         }
         // 3. 查询用户关联的目录信息
-        UserFile userRootDir = selectUserRootDirectory(context.getUserId());
+        UserFile userRootDir = getUserRootDirectory(context.getUserId());
         // 4. 判断是否查询成功
         if (Objects.isNull(userRootDir)) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "用户根目录不存在");
@@ -441,8 +459,8 @@ public class UserService extends ServiceImpl<UserMapper, User> implements IUserS
     /**
      * 查询用户根目录
      */
-    private UserFile selectUserRootDirectory(long userId) {
-        return userFileService.selectUserRootDirectory(
+    private UserFile getUserRootDirectory(long userId) {
+        return userFileService.getUserRootDirectory(
                 new GetUserRootDirContext(userId));
     }
 

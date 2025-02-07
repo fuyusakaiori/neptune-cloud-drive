@@ -48,6 +48,7 @@ public class JwtUtil {
                 .setSigningKey(JWT_PRIVATE_KEY)
                 .parseClaimsJws(token)
                 .getBody();
+        // TODO: 检查 token 是否已经过期
         return claims.get(claimKey);
     }
 

@@ -217,7 +217,7 @@ public class UserServiceTest {
 
         GetUserInfoContext userInfoContext = getUserInfoContext(loginContext.getUserId());
         // 5. 查询用户信息
-        UserInfoVO info = userService.info(userInfoContext);
+        UserInfoVO info = userService.infoUser(userInfoContext);
         Assert.assertNotNull(info);
     }
 

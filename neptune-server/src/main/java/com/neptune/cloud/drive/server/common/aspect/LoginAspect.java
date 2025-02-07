@@ -101,7 +101,7 @@ public class LoginAspect {
                 return false;
             }
         }
-        // 6. 解析 token
+        // 6. 解析 token: 只要能够解析出来, 那么就可以认为是有效的
         Object userId = JwtUtil.analyzeToken(loginToken, UserConstant.USER_LOGIN_ID);
         // 7. 判断解析是否成功
         if (Objects.isNull(userId)) {

@@ -111,6 +111,7 @@ public class S3StorageEngine extends AbstractStorageEngine {
      * 存储文件分片
      * <p>1. 文件分片是采用并发上传的, 需要加锁进行并发控制</p>
      * <p>2. 分片上传需要获取统一的 upload id, 需要控制 upload id 仅初始化一次, 并放在缓存中</p>
+     * <p>加锁原因: 如果多个线程都是初次访问缓存, 那么都无法获取到上传 ID, 会重复初始化, 最后会导致分片丢失</p>
      */
     @Override
     protected synchronized String doStoreFileChunk(StoreFileChunkContext context) throws IOException {
